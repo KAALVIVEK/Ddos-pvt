@@ -1,8 +1,8 @@
 {
     "name": "Ddos-pvt Codespace",
     "image": "mcr.microsoft.com/vscode/devcontainers/python:3.8",
-    "postStartCommand": "echo '*'; echo '*         @Spike_Magic Bot Running      *'; echo '*'; python /workspaces/VIVEK-DDOS-SHUBH/Navin.py",
-    "postCreateCommand": "pip install pymongo python-telegram-bot pyTelegramBotAPI certifi && chmod +x /workspaces/VIVEK-DDOS-SHUBH/*",
+    "postStartCommand": "echo '*'; echo '*         @Spike_Magic Bot Running      *'; echo '*'; python /workspaces/Ddos-pvt/Navin.py",
+    "postCreateCommand": "pip install pymongo python-telegram-bot pyTelegramBotAPI certifi && chmod +x /workspaces/Ddos-pvt/*",
     "customizations": {
         "vscode": {
             "settings": {
