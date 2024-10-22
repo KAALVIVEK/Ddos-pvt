@@ -42,15 +42,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [[KeyboardButton("Attack")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("🌎WELCOME TO DDOS WORLD🌎 
-
-👽Get ready to dive into the action!
-
-💀To unleash your power,press the attack button to configure followed by your targets ip and port
-
-💫 Ensure your target is locked before you strike!
-
-⚠️ Remember with great power comes great responsibility! Use it wisely.. or let the chaos reign! 💫🌞", reply_markup=reply_markup)
+    await update.message.reply_text("Press the Attack button to start configuring the attack.", reply_markup=reply_markup)
 
 # Handle approval command
 async def approve_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
