@@ -10,11 +10,11 @@ from telegram.ext import (
 )
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
+BOT_TOKEN = "YOUR_BOT_TOKEN"  # Replace with your bot token
+ADMIN_CHAT_ID = 123456789  # Replace with the admin's Telegram user ID
 PANEL_LOGIN_URL = "https://noobmodz.online/SONU/login"
 PANEL_KEY_GENERATION_URL = "https://noobmodz.online/SONU/keys/generate"
-PANEL_USERNAME = "Vivek"
+PANEL_USERNAME = "VIVEK"
 PANEL_PASSWORD = "13579780"
 
 # Store user payment data temporarily
@@ -66,11 +66,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     photo_id = update.message.photo[-1].file_id
 
-    # Notify the admin
+    # Prepare the caption
     caption = (
-        f"Payment screenshot received from {user.first_name} (@{user.username}).\n"
+        f"Payment screenshot received from {user.first_name or 'User'} (@{user.username or 'N/A'}).\n"
         f"User ID: {user.id}\nDuration: {days} days."
     )
+    
+    # Truncate the caption if necessary
+    if len(caption) > 1024:  # Telegram's max caption length is 1024 characters
+        caption = caption[:1020] + "..."
 
     keyboard = [
         [
@@ -80,6 +84,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    # Send the photo with the truncated caption
     await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
     await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
 
@@ -99,15 +104,21 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 key = key_data["key"]
                 username = key_data["username"]
                 password = key_data["password"]
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=f"Your payment has been verified. Here are your details:\n\n"
-                         f"**Key:** `{key}`\n"
-                         f"**Username:** `{username}`\n"
-                         f"**Password:** `{password}`\n\n"
-                         f"Valid for {days} day(s).",
-                    parse_mode="Markdown",
+                
+                # Prepare the message with key information
+                success_message = (
+                    f"Your payment has been verified. Here are your details:\n\n"
+                    f"**Key:** `{key}`\n"
+                    f"**Username:** `{username}`\n"
+                    f"**Password:** `{password}`\n\n"
+                    f"Valid for {days} day(s)."
                 )
+                
+                # Send the key information in multiple chunks if it's too long
+                success_messages = split_message(success_message)
+                for msg in success_messages:
+                    await context.bot.send_message(chat_id=user_id, text=msg, parse_mode="Markdown")
+                
                 await query.edit_message_text(text=f"Approved user {user_id} for {days} days and sent the key.")
             else:
                 await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"Failed to generate key for user {user_id}.\nError: {key_data.get('error')}")
@@ -118,6 +129,10 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data[0] == "reject":
         await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please contact support.")
         await query.edit_message_text(text=f"Rejected payment for user {user_id}.")
+
+# Function to split long messages into chunks
+def split_message(text, max_length=4096):
+    return [text[i:i+max_length] for i in range(0, len(text), max_length)]
 
 # Main function
 def main():
