@@ -81,6 +81,31 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please contact support.")
         await query.edit_message_text(text=f"Rejected payment for user {user_id}.")
 
+# Admin send key command
+async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.chat_id != ADMIN_CHAT_ID:
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
+    try:
+        user_id = int(context.args[0])
+        key = context.args[1]
+        username = context.args[2]
+        password = context.args[3]
+        
+        success_message = (
+            f"Your payment has been verified. Here are your details:\n\n"
+            f"**Key:** `{key}`\n"
+            f"**Username:** `{username}`\n"
+            f"**Password:** `{password}`\n\n"
+            f"Thank you for your purchase!"
+        )
+        
+        await context.bot.send_message(chat_id=user_id, text=success_message, parse_mode="Markdown")
+        await update.message.reply_text("Key sent successfully.")
+    except (IndexError, ValueError):
+        await update.message.reply_text("Usage: /sendkey <user_id> <key> <username> <password>")
+
 # Main function
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
@@ -90,6 +115,7 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     application.add_handler(CallbackQueryHandler(admin_commands))
+    application.add_handler(CommandHandler("sendkey", send_key))
 
     # Start polling
     application.run_polling()
