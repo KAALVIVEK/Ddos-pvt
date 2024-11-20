@@ -16,9 +16,9 @@ user_payment_data = {}
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prices = {
-        1: 10,  # 1 day for 10 INR
-        3: 25,  # 3 days for 25 INR
-        7: 50   # 7 days for 50 INR
+        1: 10,  # 1 day for 150 INR
+        3: 25,  # 3 days for 300 INR
+        7: 50   # 7 days for 700 INR
     }
     price_info = "\n".join([f"{days} days: {price} INR" for days, price in prices.items()])
 
