@@ -10,15 +10,19 @@ from telegram.ext import (
 )
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your bot token
+ADMIN_CHAT_ID = 123456789  # Replace with the admin's Telegram user ID
+UPI_ID = "your_upi_id@bank"  # Replace with your UPI ID
 
 # Store user payment data temporarily
 user_payment_data = {}
 
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Welcome! How many days are you paying for? (1, 3, or 7 days)")
+    await update.message.reply_text(
+        f"Welcome! How many days are you paying for? (1, 3, or 7 days)\n\n"
+        f"Please make your payment to the following UPI ID: {UPI_ID}"
+    )
     user_payment_data[update.message.chat_id] = {}
 
 # Handle payment duration
@@ -90,21 +94,17 @@ async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_id = int(context.args[0])
         key = context.args[1]
-        username = context.args[2]
-        password = context.args[3]
         
         success_message = (
-            f"Your payment has been verified. Here are your details:\n\n"
-            f"**Key:** `{key}`\n"
-            f"**Username:** `{username}`\n"
-            f"**Password:** `{password}`\n\n"
+            f"Your payment has been verified. Here is your key:\n\n"
+            f"**Key:** `{key}`\n\n"
             f"Thank you for your purchase!"
         )
         
         await context.bot.send_message(chat_id=user_id, text=success_message, parse_mode="Markdown")
         await update.message.reply_text("Key sent successfully.")
     except (IndexError, ValueError):
-        await update.message.reply_text("Usage: /sendkey <user_id> <key> <username> <password>")
+        await update.message.reply_text("Usage: /sendkey <user_id> <key>")
 
 # Main function
 def main():
