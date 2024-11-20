@@ -1,5 +1,5 @@
-import requests
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+import qrcode
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, InputFile
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -17,22 +17,51 @@ UPI_ID = "kaalvivek@fam"  # Replace with your UPI ID
 # Store user payment data temporarily
 user_payment_data = {}
 
+# Generate UPI QR code
+def generate_upi_qr(upi_id: str, amount: float, transaction_note: str) -> str:
+    upi_uri = f"upi://pay?pa={upi_id}&pn=YourName&am={amount}&tn={transaction_note}&cu=INR"
+    qr = qrcode.make(upi_uri)
+    file_path = "/tmp/upi_qr.png"
+    qr.save(file_path)
+    return file_path
+
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"Welcome! How many days are you paying for? (1, 3, or 7 days)\n\n"
-        f"Please make your payment to the following UPI ID: {UPI_ID}"
+    prices = {
+        1: 10,  # 1 day for 10 INR
+        3: 25,  # 3 days for 25 INR
+        7: 50   # 7 days for 50 INR
+    }
+    price_info = "\n".join([f"{days} days: {price} INR" for days, price in prices.items()])
+
+    message = (
+        f"Welcome! Please choose the number of days for which you are paying (1, 3, or 7 days):\n\n"
+        f"Prices:\n{price_info}\n\n"
+        f"Make your payment to the following UPI ID: {UPI_ID}"
     )
-    user_payment_data[update.message.chat_id] = {}
+    
+    # Generate QR code for 1 day as an example (you can generate more dynamically based on user input)
+    qr_path = generate_upi_qr(UPI_ID, prices[1], "Payment for 1 day")
+    
+    await update.message.reply_text(message)
+    await context.bot.send_photo(chat_id=update.message.chat_id, photo=open(qr_path, 'rb'), caption="Scan this QR code to pay.")
+
+    user_payment_data[update.message.chat_id] = {"prices": prices}
 
 # Handle payment duration
 async def handle_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
+    prices = user_payment_data.get(chat_id, {}).get("prices", {})
+
     try:
         days = int(update.message.text)
-        if days in [1, 3, 7]:
+        if days in prices:
             user_payment_data[chat_id]['days'] = days
-            await update.message.reply_text("Please send your payment screenshot for verification.")
+            amount = prices[days]
+            qr_path = generate_upi_qr(UPI_ID, amount, f"Payment for {days} days")
+            
+            await update.message.reply_text(f"Please send your payment screenshot for verification. The amount is {amount} INR.")
+            await context.bot.send_photo(chat_id=update.message.chat_id, photo=open(qr_path, 'rb'), caption=f"Scan this QR code to pay {amount} INR.")
         else:
             await update.message.reply_text("Invalid choice. Please select 1, 3, or 7 days.")
     except ValueError:
