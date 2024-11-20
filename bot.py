@@ -122,7 +122,7 @@ async def send_qr_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_chat_id = update.message.chat_id
     
     # Path to the QR code image (relative to the current directory)
-    qr_image_path = os.path.join("images", "upi_qr.png")
+    qr_image_path = os.path.join("images", "upi_qr.jpg")
     
     if os.path.exists(qr_image_path):
         # Send the QR code image
