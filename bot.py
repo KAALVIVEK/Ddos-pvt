@@ -21,7 +21,7 @@ user_payment_data = {}
 def generate_upi_qr(upi_id: str, amount: float, transaction_note: str) -> str:
     upi_uri = f"upi://pay?pa={upi_id}&pn=YourName&am={amount}&tn={transaction_note}&cu=INR"
     qr = qrcode.make(upi_uri)
-    file_path = "/tmp/upi_qr.png"
+    file_path = "/upi_qr.jpg"
     qr.save(file_path)
     return file_path
 
