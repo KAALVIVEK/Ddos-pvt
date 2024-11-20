@@ -1,21 +1,21 @@
 import requests
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
-    Application, 
-    CommandHandler, 
-    MessageHandler, 
-    CallbackQueryHandler, 
-    ContextTypes, 
+    Application,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    ContextTypes,
     filters,
 )
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"
-ADMIN_CHAT_ID = "7525850725"  # Replace with your admin's Telegram ID
-PANEL_LOGIN_URL = "https://noobmodz.online/SONU/login"  # Replace with your panel login URL
-PANEL_KEY_GENERATION_URL = "https://noobmodz.online/SONU/keys/generate"  # Replace with your panel's key generation endpoint
-PANEL_USERNAME = "Vivek"  # Replace with your panel's username
-PANEL_PASSWORD = "13579780"  # Replace with your panel's password
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
+PANEL_LOGIN_URL = "https://noobmodz.online/SONU/login"
+PANEL_KEY_GENERATION_URL = "https://noobmodz.online/SONU/keys/generate"
+PANEL_USERNAME = "Vivek"
+PANEL_PASSWORD = "13579780"
 
 # Store user payment data temporarily
 user_payment_data = {}
@@ -64,15 +64,23 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     days = user_payment_data[chat_id]['days']
     user = update.message.from_user
-
-    # Store the screenshot info
-    user_payment_data[chat_id]['photo'] = update.message.photo[-1].file_id
+    photo_id = update.message.photo[-1].file_id
 
     # Notify the admin
-    caption = (f"Payment screenshot received from {user.first_name} (@{user.username}).\n"
-               f"User ID: {user.id}\nDuration: {days} days.")
-    await context.bot.forward_message(chat_id=ADMIN_CHAT_ID, from_chat_id=chat_id, message_id=update.message.message_id)
-    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=caption)
+    caption = (
+        f"Payment screenshot received from {user.first_name} (@{user.username}).\n"
+        f"User ID: {user.id}\nDuration: {days} days."
+    )
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Approve", callback_data=f"approve:{chat_id}:{days}"),
+            InlineKeyboardButton("Reject", callback_data=f"reject:{chat_id}"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
     await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
 
 # Admin approval or rejection
@@ -91,11 +99,15 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 key = key_data["key"]
                 username = key_data["username"]
                 password = key_data["password"]
-                await context.bot.send_message(chat_id=user_id, text=f"Your payment has been verified. Here are your details:\n\n"
-                                                                     f"**Key:** `{key}`\n"
-                                                                     f"**Username:** `{username}`\n"
-                                                                     f"**Password:** `{password}`\n\n"
-                                                                     f"Valid for {days} day(s).", parse_mode="Markdown")
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"Your payment has been verified. Here are your details:\n\n"
+                         f"**Key:** `{key}`\n"
+                         f"**Username:** `{username}`\n"
+                         f"**Password:** `{password}`\n\n"
+                         f"Valid for {days} day(s).",
+                    parse_mode="Markdown",
+                )
                 await query.edit_message_text(text=f"Approved user {user_id} for {days} days and sent the key.")
             else:
                 await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"Failed to generate key for user {user_id}.\nError: {key_data.get('error')}")
@@ -106,25 +118,6 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data[0] == "reject":
         await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please contact support.")
         await query.edit_message_text(text=f"Rejected payment for user {user_id}.")
-
-# Verification handler
-async def verify_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.message.chat_id) != ADMIN_CHAT_ID:
-        return
-    try:
-        user_id = int(update.message.reply_to_message.caption.split("User ID: ")[1].split("\n")[0])
-        days = int(update.message.reply_to_message.caption.split("Duration: ")[1].split(" days")[0])
-
-        keyboard = [
-            [
-                InlineKeyboardButton("Approve", callback_data=f"approve:{user_id}:{days}"),
-                InlineKeyboardButton("Reject", callback_data=f"reject:{user_id}"),
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("Approve or reject payment?", reply_markup=reply_markup)
-    except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
 
 # Main function
 def main():
