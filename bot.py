@@ -10,9 +10,9 @@ from telegram.ext import (
 )
 
 # Constants
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your bot token
-ADMIN_CHAT_ID = 123456789  # Replace with the admin's Telegram user ID
-UPI_ID = "your_upi_id@bank"  # Replace with your UPI ID
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
+UPI_ID = "kaalvivek@fam"  # Replace with your UPI ID
 
 # Store user payment data temporarily
 user_payment_data = {}
