@@ -1,29 +1,17 @@
-import qrcode
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, InputFile
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    filters,
-)
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+import os
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
-UPI_ID = "kaalvivek@fam"  # Replace with your UPI ID
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your actual bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
+UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
+
+# Folder containing images
+IMAGE_FOLDER = "images"
 
 # Store user payment data temporarily
 user_payment_data = {}
-
-# Generate UPI QR code
-def generate_upi_qr(upi_id: str, amount: float, transaction_note: str) -> str:
-    upi_uri = f"upi://pay?pa={upi_id}&pn=YourName&am={amount}&tn={transaction_note}&cu=INR"
-    qr = qrcode.make(upi_uri)
-    file_path = "/images/upi_qr.jpg"
-    qr.save(file_path)
-    return file_path
 
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -37,14 +25,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
         f"Welcome! Please choose the number of days for which you are paying (1, 3, or 7 days):\n\n"
         f"Prices:\n{price_info}\n\n"
-        f"Make your payment to the following UPI ID: {UPI_ID}"
+        f"Make your payment to the following UPI ID: {UPI_ID}\n\n"
+        "After payment, send a screenshot of your payment here."
     )
     
-    # Generate QR code for 1 day as an example (you can generate more dynamically based on user input)
-    qr_path = generate_upi_qr(UPI_ID, prices[1], "Payment for 1 day")
-    
     await update.message.reply_text(message)
-    await context.bot.send_photo(chat_id=update.message.chat_id, photo=open(qr_path, 'rb'), caption="Scan this QR code to pay.")
 
     user_payment_data[update.message.chat_id] = {"prices": prices}
 
@@ -58,10 +43,7 @@ async def handle_duration(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if days in prices:
             user_payment_data[chat_id]['days'] = days
             amount = prices[days]
-            qr_path = generate_upi_qr(UPI_ID, amount, f"Payment for {days} days")
-            
             await update.message.reply_text(f"Please send your payment screenshot for verification. The amount is {amount} INR.")
-            await context.bot.send_photo(chat_id=update.message.chat_id, photo=open(qr_path, 'rb'), caption=f"Scan this QR code to pay {amount} INR.")
         else:
             await update.message.reply_text("Invalid choice. Please select 1, 3, or 7 days.")
     except ValueError:
@@ -135,6 +117,19 @@ async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except (IndexError, ValueError):
         await update.message.reply_text("Usage: /sendkey <user_id> <key>")
 
+# Send QR code image to user
+async def send_qr_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_chat_id = update.message.chat_id
+    
+    # Path to the QR code image (relative to the current directory)
+    qr_image_path = os.path.join("images", "upi_qr.png")
+    
+    if os.path.exists(qr_image_path):
+        # Send the QR code image
+        await context.bot.send_photo(chat_id=user_chat_id, photo=open(qr_image_path, 'rb'), caption="Scan this QR code to make a payment.")
+    else:
+        await update.message.reply_text("QR code image not found.")
+
 # Main function
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
@@ -145,8 +140,9 @@ def main():
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     application.add_handler(CallbackQueryHandler(admin_commands))
     application.add_handler(CommandHandler("sendkey", send_key))
+    application.add_handler(CommandHandler("send_qr", send_qr_code))  # Handler for sending QR code
 
-    # Start polling
+    # Start the bot
     application.run_polling()
 
 if __name__ == "__main__":
