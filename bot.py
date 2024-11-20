@@ -10,8 +10,8 @@ from telegram.ext import (
 )
 
 # Constants
-BOT_TOKEN = "YOUR_BOT_TOKEN"  # Replace with your bot token
-ADMIN_CHAT_ID = 123456789  # Replace with the admin's Telegram user ID
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
 PANEL_LOGIN_URL = "https://noobmodz.online/SONU/login"
 PANEL_KEY_GENERATION_URL = "https://noobmodz.online/SONU/keys/generate"
 PANEL_USERNAME = "VIVEK"
