@@ -1,4 +1,4 @@
-import os
+import requests
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application,
@@ -10,8 +10,8 @@ from telegram.ext import (
 )
 
 # Constants
-BOT_TOKEN = os.getenv("7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc")  # Replace with your bot token
-ADMIN_CHAT_ID = int(os.getenv("7083378335"))  # Replace with the admin's Telegram user ID
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with the admin's Telegram user ID
 
 # Store user payment data temporarily
 user_payment_data = {}
