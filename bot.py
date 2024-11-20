@@ -1,32 +1,52 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackQueryHandler, filters
-import os
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your actual bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
-UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your bot token
 
-# Folder containing images
-IMAGE_FOLDER = "images"
+# Moderators and their QR code paths with UPI IDs
+moderators = {
+    7083378335: {"qr_path": "images/admin_qr.png", "upi": "kaalvivek@fam"},  # Admin's UPI and QR code
+    6469998312: {"qr_path": "images/mod_qr.png", "upi": "mod@upi"}       # Moderator's UPI and QR code
+}
+
+# Store online moderators
+online_moderators = set()
 
 # Store user payment data temporarily
 user_payment_data = {}
 
+# Mark moderator as online
+async def online(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    moderator_id = update.message.chat_id
+    if moderator_id in moderators:
+        online_moderators.add(moderator_id)
+        await update.message.reply_text("You are now marked as online.")
+    else:
+        await update.message.reply_text("You are not a registered moderator.")
+
+# Mark moderator as offline
+async def offline(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    moderator_id = update.message.chat_id
+    if moderator_id in online_moderators:
+        online_moderators.remove(moderator_id)
+        await update.message.reply_text("You are now marked as offline.")
+    else:
+        await update.message.reply_text("You are already offline or not a registered moderator.")
+
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prices = {
-        1: 150,  # 1 day for 150 INR
-        3: 300,  # 3 days for 300 INR
-        7: 700   # 7 days for 700 INR
+        1: 150,  # 1 day for 10 INR
+        3: 300,  # 3 days for 25 INR
+        7: 700   # 7 days for 50 INR
     }
     price_info = "\n".join([f"{days} days: {price} INR" for days, price in prices.items()])
 
     message = (
         f"Welcome! Please choose the number of days for which you are paying (1, 3, or 7 days):\n\n"
         f"Prices:\n{price_info}\n\n"
-        f"Make your payment to the following UPI ID: {UPI_ID}\n\n"
-        "After payment, send a screenshot of your payment here."
+        "After payment, send a screenshot of your payment here. A moderator will assist you shortly."
     )
     
     await update.message.reply_text(message)
@@ -78,9 +98,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Send the photo with the truncated caption
-    await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
-    await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
+    # Send the payment screenshot to the first online moderator
+    if online_moderators:
+        online_id = next(iter(online_moderators))  # Get the first online moderator
+        qr_path = moderators[online_id]["qr_path"]
+        upi_id = moderators[online_id]["upi"]
+
+        # Send QR and UPI details to the user
+        qr_caption = f"Please pay to the UPI ID below and upload the payment screenshot.\n\n**UPI ID:** {upi_id}"
+        await context.bot.send_photo(chat_id=chat_id, photo=open(qr_path, 'rb'), caption=qr_caption, parse_mode="Markdown")
+
+        # Send payment screenshot to the moderator
+        await context.bot.send_photo(chat_id=online_id, photo=photo_id, caption=caption, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text("No moderators are currently online. Please try again later.")
 
 # Admin approval or rejection
 async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,7 +129,7 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Admin send key command
 async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat_id != ADMIN_CHAT_ID:
+    if update.message.chat_id not in moderators.keys():
         await update.message.reply_text("You are not authorized to use this command.")
         return
 
@@ -117,30 +148,18 @@ async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except (IndexError, ValueError):
         await update.message.reply_text("Usage: /sendkey <user_id> <key>")
 
-# Send QR code image to user
-async def send_qr_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_chat_id = update.message.chat_id
-    
-    # Path to the QR code image (relative to the current directory)
-    qr_image_path = os.path.join("images", "upi_qr.jpg")
-    
-    if os.path.exists(qr_image_path):
-        # Send the QR code image
-        await context.bot.send_photo(chat_id=user_chat_id, photo=open(qr_image_path, 'rb'), caption="Scan this QR code to make a payment.")
-    else:
-        await update.message.reply_text("QR code image not found.")
-
 # Main function
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
     # Handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("online", online))
+    application.add_handler(CommandHandler("offline", offline))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(CallbackQueryHandler(admin_commands))  # This is the correct import for handling callback queries
+    application.add_handler(CallbackQueryHandler(admin_commands))
     application.add_handler(CommandHandler("sendkey", send_key))
-    application.add_handler(CommandHandler("send_qr", send_qr_code))  # Handler for sending QR code
 
     # Start the bot
     application.run_polling()
