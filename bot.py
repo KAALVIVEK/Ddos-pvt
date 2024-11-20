@@ -1,5 +1,5 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackQueryHandler, filters
 import os
 
 # Constants
@@ -16,9 +16,9 @@ user_payment_data = {}
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prices = {
-        1: 10,  # 1 day for 150 INR
-        3: 25,  # 3 days for 300 INR
-        7: 50   # 7 days for 700 INR
+        1: 10,  # 1 day for 10 INR
+        3: 25,  # 3 days for 25 INR
+        7: 50   # 7 days for 50 INR
     }
     price_info = "\n".join([f"{days} days: {price} INR" for days, price in prices.items()])
 
@@ -138,7 +138,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(CallbackQueryHandler(admin_commands))
+    application.add_handler(CallbackQueryHandler(admin_commands))  # This is the correct import for handling callback queries
     application.add_handler(CommandHandler("sendkey", send_key))
     application.add_handler(CommandHandler("send_qr", send_qr_code))  # Handler for sending QR code
 
