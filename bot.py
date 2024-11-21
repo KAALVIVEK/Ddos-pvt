@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 import os
 
 # Constants
-BOT_TOKEN = "YOUR_BOT_TOKEN"  # Replace with your actual bot token
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your actual bot token
 ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
 UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
 
