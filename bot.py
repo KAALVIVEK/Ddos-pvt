@@ -4,7 +4,7 @@ import os
 
 # Constants
 BOT_TOKEN = "7243095492:AAFIOpvDLv45g5PMk8tyUY0d5sb65RrErcQ"  # Replace with your actual bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
+ADMIN_CHAT_ID = 5187934508  # Replace with your admin's Telegram user ID
 UPI_ID = "evilempire654@okicici"  # Replace with your actual UPI ID
 
 # Folder containing images
