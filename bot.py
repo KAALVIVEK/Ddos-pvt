@@ -3,9 +3,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 import os
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your actual bot token
+BOT_TOKEN = "7243095492:AAFIOpvDLv45g5PMk8tyUY0d5sb65RrErcQ"  # Replace with your actual bot token
 ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
-UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
+UPI_ID = "evilempire654@okicici"  # Replace with your actual UPI ID
 
 # Folder containing images
 IMAGE_FOLDER = "images"
@@ -18,14 +18,15 @@ resellers = set()
 
 # Prices
 regular_prices = {
-    1: 150,  # 1 day for 150 INR
+    1: 200,  # 1 day for 150 INR
     3: 300,  # 3 days for 300 INR
     7: 700   # 7 days for 700 INR
+    30: 1500
 }
 reseller_prices = {
-    3: {'1_day': 300, '3_days': 650, '7_days': 1450},   # Minimum 3 keys
-    5: {'1_day': 500, '3_days': 1000, '7_days': 2200},  # 5 keys
-    10: {'1_day': 1000, '3_days': 2200, '7_days': 4600} # 10 keys
+    3: {'1_day': 300, '3_days': 450, '7_days': 1450, '30_days': 2400},   # Minimum 3 keys
+    5: {'1_day': 500, '3_days': 750, '7_days': 1500, '30_days': 4000},   # 5 keys
+    10: {'1_day': 1000, '3_days': 1500, '7_days': 3000, '30_days': 8000} # 10 keys
 }
 
 # Start command
