@@ -20,13 +20,12 @@ resellers = set()
 regular_prices = {
     1: 200,  # 1 day for 150 INR
     3: 300,  # 3 days for 300 INR
-    7: 700,   # 7 days for 700 INR
-    30: 1500
+    7: 700   # 7 days for 700 INR
 }
 reseller_prices = {
-    3: {'1_day': 300, '3_days': 450, '7_days': 1450, '30_days': 2400},   # Minimum 3 keys
-    5: {'1_day': 500, '3_days': 750, '7_days': 1500, '30_days': 4000},   # 5 keys
-    10: {'1_day': 1000, '3_days': 1500, '7_days': 3000, '30_days': 8000} # 10 keys
+    3: {'1_day': 300, '3_days': 450, '7_days': 900},   # Minimum 3 keys
+    5: {'1_day': 500, '3_days': 750, '7_days': 1500},  # 5 keys
+    10: {'1_day': 1000, '3_days': 1500, '7_days': 3000} # 10 keys
 }
 
 # Start command
