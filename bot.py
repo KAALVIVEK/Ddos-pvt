@@ -20,7 +20,7 @@ resellers = set()
 regular_prices = {
     1: 200,  # 1 day for 150 INR
     3: 300,  # 3 days for 300 INR
-    7: 700   # 7 days for 700 INR
+    7: 700,   # 7 days for 700 INR
     30: 1500
 }
 reseller_prices = {
