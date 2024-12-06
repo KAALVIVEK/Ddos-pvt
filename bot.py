@@ -87,56 +87,88 @@ async def handle_reseller_response(update: Update, context: ContextTypes.DEFAULT
 
     user_payment_data[chat_id] = {"prices": prices}
 
-# Admin command to send APK manually
-async def send_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat_id != ADMIN_CHAT_ID:
-        await update.message.reply_text("You are not authorized to use this command.")
+# Handle payment screenshot with amount
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    if 'amount' not in user_payment_data.get(chat_id, {}) and 'days' not in user_payment_data.get(chat_id, {}):
+        await update.message.reply_text("Please specify the number of days/keys first.")
         return
 
-    if len(context.args) != 1:
-        await update.message.reply_text("Please provide a valid user ID. Usage: /send_apk <user_id>")
-        return
+    user_message = update.message.caption
+    user = update.message.from_user
+    photo_id = update.message.photo[-1].file_id
 
-    user_id = context.args[0]
+    # Extract the amount from the user's message
     try:
-        user_id = int(user_id)
-    except ValueError:
-        await update.message.reply_text("Invalid user ID.")
+        user_paid_amount = int(user_message.split()[-1])
+    except (ValueError, IndexError):
+        await update.message.reply_text("Please include the amount you paid in your message with the screenshot.")
         return
 
-    # Ask the admin to send the APK file
-    await update.message.reply_text(f"Please send the APK file that you wish to send to user {user_id}.")
-
-    # Set the state to await the APK file
-    context.user_data['apk_recipient'] = user_id
-
-# Handle the APK file sent by the admin
-async def handle_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if 'apk_recipient' not in context.user_data:
-        return
-
-    # Get the user ID from context
-    user_id = context.user_data['apk_recipient']
-
-    # Check if the sent file is an APK
-    if update.message.document and update.message.document.mime_type == "application/vnd.android.package-archive":
-        file = update.message.document
-        # Send the APK to the user
-        await context.bot.send_document(chat_id=user_id, document=file.file_id, caption=f"Here is your APK file. User ID: {user_id}")
-        await update.message.reply_text(f"APK sent to user {user_id}.")
-        
-        # Clean up context data after sending the file
-        del context.user_data['apk_recipient']
+    # Determine the expected price
+    if chat_id in resellers:
+        amount = user_payment_data[chat_id]['amount']
+        duration = user_payment_data[chat_id]['duration']
+        expected_price = user_payment_data[chat_id]['prices'][amount][duration]
     else:
-        await update.message.reply_text("Please send a valid APK file.")
+        days = user_payment_data[chat_id]['days']
+        expected_price = user_payment_data[chat_id]['prices'][days]
+
+    # Check if the paid amount matches the expected amount
+    if user_paid_amount != expected_price:
+        await update.message.reply_text(f"The amount you paid ({user_paid_amount} INR) does not match the expected amount ({expected_price} INR). Please check and send the correct amount.")
+        return
+
+    # Prepare the caption
+    if chat_id in resellers:
+        caption = (
+            f"Payment screenshot received from {user.first_name or 'User'} (@{user.username or 'N/A'}).\n"
+            f"User ID: {user.id}\nKeys: {amount}\nDuration: {duration}\nAmount Paid: {user_paid_amount} INR."
+        )
+    else:
+        caption = (
+            f"Payment screenshot received from {user.first_name or 'User'} (@{user.username or 'N/A'}).\n"
+            f"User ID: {user.id}\nDays: {days}\nAmount Paid: {user_paid_amount} INR."
+        )
+
+    # Truncate the caption if necessary
+    if len(caption) > 1024:  # Telegram's max caption length is 1024 characters
+        caption = caption[:1020] + "..."
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Approve", callback_data=f"approve:{chat_id}:{expected_price}"),
+            InlineKeyboardButton("Reject", callback_data=f"reject:{chat_id}"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the photo with the truncated caption
+    await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
+    await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
+
+# Admin approval or rejection
+async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split(":")
+    user_id = int(data[1])
+
+    if data[0] == "approve":
+        amount = int(data[2])
+        await context.bot.send_message(chat_id=user_id, text="Your payment has been verified. The admin will send your key shortly.")
+        await query.edit_message_text(text=f"Approved user {user_id} for {amount}. Remember to send the key manually.")
+    elif data[0] == "reject":
+        await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please try again or contact support.")
+        await query.edit_message_text(text=f"Rejected payment from user {user_id}.")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
-    app.add_handler(CommandHandler("send_apk", send_apk))
-    app.add_handler(MessageHandler(filters.Document.ALL, handle_apk))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration_or_quantity))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
 
     app.run_polling()
 
