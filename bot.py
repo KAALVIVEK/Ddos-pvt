@@ -7,9 +7,6 @@ BOT_TOKEN = "7826454726:AAHlkjAVWpeFdcQJf76RJsHJMO2YavY71oU"  # Replace with you
 ADMIN_CHAT_ID = 6531606240  # Replace with your admin's Telegram user ID
 UPI_ID = "7307184945@omni"  # Replace with your actual UPI ID
 
-# Folder containing APKs (Keys)
-KEYS_FOLDER = "keys"  # Folder where your APK or keys are stored
-
 # Store user payment data temporarily
 user_payment_data = {}
 
@@ -18,7 +15,7 @@ resellers = set()
 
 # Prices
 regular_prices = {
-        1: 120,   # 1 days for 120 INR
+    1: 120,   # 1 days for 120 INR
     3: 250,  # 3 days for 300 INR
     7: 500   # 7 days for 700 INR
 }
@@ -104,33 +101,34 @@ async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("Invalid user ID or key format. Please try again.")
 
-# Admin command to send an APK file
+# Admin command to send an APK file that is uploaded "on the spot"
 async def send_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if the user issuing the command is the admin
     if update.message.chat_id != ADMIN_CHAT_ID:
         await update.message.reply_text("You are not authorized to use this command.")
         return
     
-    # Command should be in the format: /send_apk <user_id> <apk_file_name>
-    if len(context.args) != 2:
-        await update.message.reply_text("Usage: /send_apk <user_id> <apk_file_name>")
-        return
-    
-    try:
-        user_id = int(context.args[0])  # Get user ID
-        apk_file_name = context.args[1]  # Get the APK file name
+    # Check if the admin has sent a document (APK file)
+    if update.message.document:
+        # Get user ID from the command args
+        if len(context.args) != 1:
+            await update.message.reply_text("Usage: /send_apk <user_id>")
+            return
         
-        # Check if the APK file exists in the KEYS_FOLDER
-        apk_path = os.path.join(KEYS_FOLDER, apk_file_name)
-        if os.path.exists(apk_path):
-            # If the APK file exists, send it as a document
-            await context.bot.send_document(chat_id=user_id, document=open(apk_path, 'rb'))
+        try:
+            user_id = int(context.args[0])  # Get user ID
+            
+            # Get the document (APK) file ID
+            apk_file_id = update.message.document.file_id
+            
+            # Send the APK to the user
+            await context.bot.send_document(chat_id=user_id, document=apk_file_id)
             await update.message.reply_text(f"APK sent to user {user_id}.")
-        else:
-            await update.message.reply_text(f"APK file '{apk_file_name}' not found.")
-    
-    except ValueError:
-        await update.message.reply_text("Invalid user ID or APK file format. Please try again.")
+        
+        except ValueError:
+            await update.message.reply_text("Invalid user ID. Please try again.")
+    else:
+        await update.message.reply_text("Please upload an APK file with the command.")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
