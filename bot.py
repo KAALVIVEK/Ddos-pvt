@@ -3,9 +3,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import os
 
 # Constants
-BOT_TOKEN = "7826454726:AAHlkjAVWpeFdcQJf76RJsHJMO2YavY71oU"  # Replace with your actual bot token
-ADMIN_CHAT_ID = 6531606240  # Replace with your admin's Telegram user ID
-UPI_ID = "7307184945@omni"  # Replace with your actual UPI ID
+BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your actual bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
+UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
 IMAGE_FOLDER = "images"
 
 # Store user payment data temporarily
@@ -13,16 +13,19 @@ user_payment_data = {}
 resellers = set()
 
 # Prices
-regular_prices = {    1: 120,   # 1 days for 120 INR
-    3: 250,  # 3 days for 300 INR
-    7: 500   # 7 days for 700 INR
-}
+regular_prices = {1: 150, 3: 300, 7: 700}
 reseller_prices = {
-    3: {'1_day': 240, '3_days': 450, '7_days': 900},   # Minimum 3 keys
-    5: {'1_day': 400, '3_days': 750, '7_days': 1500},  # 5 keys
-    10: {'1_day': 800, '3_days': 1500, '7_days': 3000} # 10 keys
+    3: {'1_day': 450, '3_days': 900, '7_days': 2100},
+    5: {'1_day': 750, '3_days': 1500, '7_days': 3500},
+    10: {'1_day': 1500, '3_days': 3000, '7_days': 7000}
 }
 
+# In-memory key database
+key_database = {
+    1: [],  # Keys for 1 day
+    3: [],  # Keys for 3 days
+    7: [],  # Keys for 7 days
+}
 
 # Start command
 async def start(update: Update, context) -> None:
@@ -146,7 +149,9 @@ async def handle_photo(update: Update, context) -> None:
 
     keyboard = [
         [
-            InlineKeyboardButton("Approve", callback_data=f"approve:{chat_id}:{expected_price}"),
+            InlineKeyboardButton("Approve for 1 day", callback_data=f"approve:1:{chat_id}:{expected_price}"),
+            InlineKeyboardButton("Approve for 3 days", callback_data=f"approve:3:{chat_id}:{expected_price}"),
+            InlineKeyboardButton("Approve for 7 days", callback_data=f"approve:7:{chat_id}:{expected_price}"),
             InlineKeyboardButton("Reject", callback_data=f"reject:{chat_id}"),
         ]
     ]
@@ -155,56 +160,43 @@ async def handle_photo(update: Update, context) -> None:
     await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
     await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
 
-# Admin command to manually send the key
-async def send_key(update: Update, context) -> None:
+# Admin command to manually add keys in bulk to the database
+async def add_key(update: Update, context) -> None:
+    if update.message.chat_id != ADMIN_CHAT_ID:
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+
     args = context.args
-    if len(args) != 2:
-        await update.message.reply_text("Usage: /send_key <user_id> <key>")
+    if len(args) < 2:
+        await update.message.reply_text("Usage: /add_key <days> <key_1> <key_2> ...")
         return
 
     try:
-        user_id = int(args[0])
-        key = args[1]
-        telegram_channel_link = "https://t.me/+SIWmd0LuFw01Mjk1"
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=(
-                "Your payment has been approved!\n\n"
-                f"Here is your key: {key}\n\n"
-                f"Join Channel for Setup and Updates: {telegram_channel_link}"
-            )
-        )
-        await update.message.reply_text(f"Key successfully sent to user {user_id}.")
+        days = int(args[0])
+        keys = args[1:]
+        if days not in key_database:
+            await update.message.reply_text(f"Invalid number of days: {days}. Only 1, 3, and 7 are valid.")
+            return
+
+        key_database[days].extend(keys)
+        await update.message.reply_text(f"{len(keys)} keys for {days} days added successfully.")
     except ValueError:
-        await update.message.reply_text("Invalid user ID. Please provide a numeric user ID.")
+        await update.message.reply_text("Invalid input. Please use the correct format: /add_key <days> <key_1> <key_2> ...")
 
-# Admin approval or rejection
-async def admin_commands(update: Update, context) -> None:
-    query = update.callback_query
-    data = query.data.split(":")
-    user_id = int(data[1])
-
-    if data[0] == "approve":
-        await context.bot.send_message(chat_id=user_id, text="Your payment has been approved! The admin will send your key shortly.")
-        await query.edit_message_text(text=f"Approved payment from user {user_id}.")
-    elif data[0] == "reject":
-        await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please try again or contact support.")
-        await query.edit_message_text(text=f"Rejected payment from user {user_id}.")
-
+# Main function to run the bot
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
-    
+
     # Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration_or_quantity))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(CommandHandler("send_key", send_key))
-    application.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
+    application.add_handler(CommandHandler("add_key", add_key))
 
     # Run the bot
     application.run_polling()
 
 if __name__ == "__main__":
     main()
-                
+    
