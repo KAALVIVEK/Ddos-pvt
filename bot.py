@@ -165,7 +165,7 @@ async def send_key(update: Update, context) -> None:
     try:
         user_id = int(args[0])
         key = args[1]
-        telegram_channel_link = "https://t.me/YourTelegramChannel"
+        telegram_channel_link = "https://t.me/+SIWmd0LuFw01Mjk1"
         await context.bot.send_message(
             chat_id=user_id,
             text=(
