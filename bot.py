@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Document
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackQueryHandler, filters
 import os
 
@@ -182,7 +182,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Send the photo with the truncated caption
     await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
-
     await update.message.reply_text("Your payment screenshot has been sent for verification. You will receive a response shortly.")
 
 # Handle APK file upload by admin
@@ -240,6 +239,7 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_admin_upload))
+    app.add_handler(CommandHandler("upload_apk", handle_admin_upload))  # Register the upload command
 
     app.run_polling()
 
