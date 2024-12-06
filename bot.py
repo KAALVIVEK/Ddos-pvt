@@ -116,10 +116,9 @@ def main():
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
-    app.add_handler(CommandHandler("send_key", send_key, pass_args=True))  # Add handler for send_key command
+    app.add_handler(CommandHandler("send_key", send_key))  # Remove pass_args here
 
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-    
