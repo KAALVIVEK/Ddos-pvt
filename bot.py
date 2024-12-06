@@ -4,8 +4,8 @@ import os
 
 # Constants
 BOT_TOKEN = "7826454726:AAHlkjAVWpeFdcQJf76RJsHJMO2YavY71oU"  # Replace with your actual bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
-UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
+ADMIN_CHAT_ID = 6531606240  # Replace with your admin's Telegram user ID
+UPI_ID = "7307184945@omni"  # Replace with your actual UPI ID
 
 # Store user payment data temporarily
 user_payment_data = {}
@@ -15,14 +15,14 @@ resellers = set()
 
 # Prices
 regular_prices = {
-    1: 150,  # 1 day for 150 INR
-    3: 300,  # 3 days for 300 INR
-    7: 700   # 7 days for 700 INR
+    1: 120,  # 1 day for 150 INR
+    3: 250,  # 3 days for 300 INR
+    7: 500   # 7 days for 700 INR
 }
 reseller_prices = {
-    3: {'1_day': 450, '3_days': 900, '7_days': 2100},   # Minimum 3 keys
-    5: {'1_day': 750, '3_days': 1500, '7_days': 3500},  # 5 keys
-    10: {'1_day': 1500, '3_days': 3000, '7_days': 7000} # 10 keys
+    3: {'1_day': 240, '3_days': 450, '7_days': 900},   # Minimum 3 keys
+    5: {'1_day': 400, '3_days': 750, '7_days': 1500},  # 5 keys
+    10: {'1_day': 800, '3_days': 1500, '7_days': 3000} # 10 keys
 }
 
 # Start command
