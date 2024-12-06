@@ -135,7 +135,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
-    app.add_handler(CommandHandler("send_apk", send_apk, pass_args=True))
+    app.add_handler(CommandHandler("send_apk", send_apk))
     app.add_handler(MessageHandler(filters.Document.ALL, handle_apk))
 
     app.run_polling()
