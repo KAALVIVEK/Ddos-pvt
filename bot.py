@@ -1,14 +1,18 @@
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, Document
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackQueryHandler, filters
 import os
 
 # Constants
-BOT_TOKEN = "7243095492:AAFIOpvDLv45g5PMk8tyUY0d5sb65RrErcQ"  # Replace with your actual bot token
-ADMIN_CHAT_ID = 5187934508  # Replace with your admin's Telegram user ID
+BOT_TOKEN = "7826454726:AAHlkjAVWpeFdcQJf76RJsHJMO2YavY71oU"  # Replace with your actual bot token
+ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
 UPI_ID = "evilempire654@okicici"  # Replace with your actual UPI ID
 
-# Folder containing images
+# Folder containing images and admin files
 IMAGE_FOLDER = "images"
+ADMIN_FILE_FOLDER = "admin_files"
+
+# Ensure the folder exists
+os.makedirs(ADMIN_FILE_FOLDER, exist_ok=True)
 
 # Store user payment data temporarily
 user_payment_data = {}
@@ -16,9 +20,12 @@ user_payment_data = {}
 # Store reseller statuses
 resellers = set()
 
+# Store the current APK file path
+current_apk_file_path = None
+
 # Prices
 regular_prices = {
-    1: 200,  # 1 day for 150 INR
+    1: 200,  # 1 day for 200 INR
     3: 300,  # 3 days for 300 INR
     7: 700   # 7 days for 700 INR
 }
@@ -175,7 +182,34 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Send the photo with the truncated caption
     await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
-    await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
+
+    await update.message.reply_text("Your payment screenshot has been sent for verification. You will receive a response shortly.")
+
+# Handle APK file upload by admin
+async def handle_admin_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global current_apk_file_path
+
+    if update.message.chat_id != ADMIN_CHAT_ID:
+        await update.message.reply_text("Only the admin can upload files.")
+        return
+
+    if not update.message.document:
+        await update.message.reply_text("Please upload a valid APK file.")
+        return
+
+    file = update.message.document
+    file_id = file.file_id
+    file_name = file.file_name
+
+    if not file_name.endswith(".apk"):
+        await update.message.reply_text("Please upload a valid APK file.")
+        return
+
+    # Save the APK file
+    current_apk_file_path = os.path.join(ADMIN_FILE_FOLDER, file_name)
+    await file.get_file().download(custom_path=current_apk_file_path)
+
+    await update.message.reply_text(f"APK file '{file_name}' uploaded successfully.")
 
 # Admin approval or rejection
 async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -186,11 +220,17 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data[0] == "approve":
         amount = int(data[2])
         await context.bot.send_message(chat_id=user_id, text="Your payment has been verified. The admin will send your key shortly.")
-        await query.edit_message_text(text=f"Approved user {user_id} for {amount}. Remember to send the key manually.")
+
+        # Send the APK file along with the key
+        if current_apk_file_path:
+            await context.bot.send_document(chat_id=user_id, document=open(current_apk_file_path, 'rb'), caption="Here is your key and the latest APK file.")
+
+        await query.edit_message_text(text=f"Approved user {user_id} for {amount}. APK file sent.")
     elif data[0] == "reject":
         await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please try again or contact support.")
         await query.edit_message_text(text=f"Rejected payment from user {user_id}.")
 
+# Main function
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     
@@ -199,8 +239,10 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration_or_quantity))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_admin_upload))
 
     app.run_polling()
 
 if __name__ == "__main__":
     main()
+    
