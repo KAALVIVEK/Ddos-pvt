@@ -231,7 +231,6 @@ def main():
     application.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
     application.add_handler(MessageHandler(filters.TEXT, handle_duration_or_quantity))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
     application.add_handler(CommandHandler("send_apk", send_apk))  # Add the send_apk command
     application.add_handler(CommandHandler("send_key", send_key))  # Add the send_key command
 
