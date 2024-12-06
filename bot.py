@@ -18,7 +18,7 @@ resellers = set()
 
 # Prices
 regular_prices = {
-    1: 120,   # 1 days for 120 INR
+        1: 120,   # 1 days for 120 INR
     3: 250,  # 3 days for 300 INR
     7: 500   # 7 days for 700 INR
 }
@@ -81,7 +81,7 @@ async def handle_reseller_response(update: Update, context: ContextTypes.DEFAULT
 
     await query.message.reply_text(message)
 
-# Admin command to send key to user
+# Admin command to send a key (text or key string)
 async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if the user issuing the command is the admin
     if update.message.chat_id != ADMIN_CHAT_ID:
@@ -95,28 +95,50 @@ async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         user_id = int(context.args[0])  # Get user ID
-        key = context.args[1]  # Get the key (e.g., APK file or key string)
+        key = context.args[1]  # Get the key (text-based key)
         
-        # Check if the key exists in the KEYS_FOLDER (APK or other file)
-        key_path = os.path.join(KEYS_FOLDER, key)
-        if os.path.exists(key_path):
-            # If the key is an APK file, send the file
-            await context.bot.send_document(chat_id=user_id, document=open(key_path, 'rb'))
-            await update.message.reply_text(f"Key (APK) sent to user {user_id}.")
-        else:
-            # If it's just a string key, send the text as a message
-            await context.bot.send_message(chat_id=user_id, text=f"Your key: {key}")
-            await update.message.reply_text(f"Key sent to user {user_id}.")
+        # Send the key as a text message to the user
+        await context.bot.send_message(chat_id=user_id, text=f"Your key: {key}")
+        await update.message.reply_text(f"Key sent to user {user_id}.")
     
     except ValueError:
         await update.message.reply_text("Invalid user ID or key format. Please try again.")
+
+# Admin command to send an APK file
+async def send_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Check if the user issuing the command is the admin
+    if update.message.chat_id != ADMIN_CHAT_ID:
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+    
+    # Command should be in the format: /send_apk <user_id> <apk_file_name>
+    if len(context.args) != 2:
+        await update.message.reply_text("Usage: /send_apk <user_id> <apk_file_name>")
+        return
+    
+    try:
+        user_id = int(context.args[0])  # Get user ID
+        apk_file_name = context.args[1]  # Get the APK file name
+        
+        # Check if the APK file exists in the KEYS_FOLDER
+        apk_path = os.path.join(KEYS_FOLDER, apk_file_name)
+        if os.path.exists(apk_path):
+            # If the APK file exists, send it as a document
+            await context.bot.send_document(chat_id=user_id, document=open(apk_path, 'rb'))
+            await update.message.reply_text(f"APK sent to user {user_id}.")
+        else:
+            await update.message.reply_text(f"APK file '{apk_file_name}' not found.")
+    
+    except ValueError:
+        await update.message.reply_text("Invalid user ID or APK file format. Please try again.")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
-    app.add_handler(CommandHandler("send_key", send_key))  # Remove pass_args here
+    app.add_handler(CommandHandler("send_key", send_key))  # Command to send a key
+    app.add_handler(CommandHandler("send_apk", send_apk))  # Command to send APK
 
     app.run_polling()
 
