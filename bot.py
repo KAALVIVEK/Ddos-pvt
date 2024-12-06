@@ -182,33 +182,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Send the photo with the truncated caption
     await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
-    await update.message.reply_text("Your payment screenshot has been sent for verification. You will receive a response shortly.")
-
-# Handle APK file upload by admin
-async def handle_admin_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global current_apk_file_path
-
-    if update.message.chat_id != ADMIN_CHAT_ID:
-        await update.message.reply_text("Only the admin can upload files.")
-        return
-
-    if not update.message.document:
-        await update.message.reply_text("Please upload a valid APK file.")
-        return
-
-    file = update.message.document
-    file_id = file.file_id
-    file_name = file.file_name
-
-    if not file_name.endswith(".apk"):
-        await update.message.reply_text("Please upload a valid APK file.")
-        return
-
-    # Save the APK file
-    current_apk_file_path = os.path.join(ADMIN_FILE_FOLDER, file_name)
-    await file.get_file().download(custom_path=current_apk_file_path)
-
-    await update.message.reply_text(f"APK file '{file_name}' uploaded successfully.")
+    await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
 
 # Admin approval or rejection
 async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -219,30 +193,58 @@ async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data[0] == "approve":
         amount = int(data[2])
         await context.bot.send_message(chat_id=user_id, text="Your payment has been verified. The admin will send your key shortly.")
-
-        # Send the APK file along with the key
-        if current_apk_file_path:
-            await context.bot.send_document(chat_id=user_id, document=open(current_apk_file_path, 'rb'), caption="Here is your key and the latest APK file.")
-
-        await query.edit_message_text(text=f"Approved user {user_id} for {amount}. APK file sent.")
+        await query.edit_message_text(text=f"Approved user {user_id} for {amount}.")
     elif data[0] == "reject":
-        await context.bot.send_message(chat_id=user_id, text="Your payment could not be verified. Please try again or contact support.")
-        await query.edit_message_text(text=f"Rejected payment from user {user_id}.")
+        await context.bot.send_message(chat_id=user_id, text="Your payment has been rejected. Please check the amount and try again.")
+        await query.edit_message_text(text=f"Rejected user {user_id}.")
 
-# Main function
+# Admin upload APK
+async def upload_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global current_apk_file_path
+
+    if update.message.from_user.id == ADMIN_CHAT_ID:
+        if update.message.document:
+            file = update.message.document
+            file_name = file.file_name
+
+            if file_name.endswith(".apk"):
+                file_path = os.path.join(ADMIN_FILE_FOLDER, file_name)
+                await file.download_to_drive(file_path)
+                current_apk_file_path = file_path
+                await update.message.reply_text(f"APK file '{file_name}' has been uploaded successfully.")
+            else:
+                await update.message.reply_text("Please upload a valid APK file.")
+        else:
+            await update.message.reply_text("Please send a document file (APK) to upload.")
+    else:
+        await update.message.reply_text("You do not have permission to upload APK files.")
+
+# Send APK to the user
+async def send_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if current_apk_file_path:
+        await update.message.reply_text("Sending APK file...")
+        with open(current_apk_file_path, 'rb') as apk_file:
+            await update.message.reply_document(document=apk_file)
+    else:
+        await update.message.reply_text("No APK file uploaded yet.")
+
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_duration_or_quantity))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
-    app.add_handler(MessageHandler(filters.Document.ALL, handle_admin_upload))
-    app.add_handler(CommandHandler("upload_apk", handle_admin_upload))  # Register the upload command
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    app.run_polling()
+    # Command handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("upload_apk", upload_apk))
+    application.add_handler(CommandHandler("send_apk", send_apk))
+
+    # Message handler for the resellers or payment message
+    application.add_handler(MessageHandler(filters.TEXT, handle_duration_or_quantity))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    # Callback query handler for reseller response and admin commands
+    application.add_handler(CallbackQueryHandler(handle_reseller_response))
+    application.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
+
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
-    
