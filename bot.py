@@ -1,11 +1,15 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackQueryHandler, filters
 import os
+import qrcode
 
 # Constants
 BOT_TOKEN = "7826454726:AAHlkjAVWpeFdcQJf76RJsHJMO2YavY71oU"  # Replace with your actual bot token
 ADMIN_CHAT_ID = 6531606240  # Replace with your admin's Telegram user ID
 UPI_ID = "7307184945@omni"  # Replace with your actual UPI ID
+
+# Folder containing images
+IMAGE_FOLDER = "images"
 
 # Store user payment data temporarily
 user_payment_data = {}
@@ -25,10 +29,15 @@ reseller_prices = {
     10: {'1_day': 800, '3_days': 1500, '7_days': 3000} # 10 keys
 }
 
+# Ensure QR code exists
+def generate_qr_code():
+    qr_image_path = os.path.join(IMAGE_FOLDER, "upi_qr.png")
+    if not os.path.exists(qr_image_path):
+        qr = qrcode.make(UPI_ID)  # Generate QR for UPI ID
+        qr.save(qr_image_path)
+
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.message.chat_id
-    # Send welcome message and ask if the user is a reseller
     keyboard = [
         [
             InlineKeyboardButton("Yes", callback_data="reseller_yes"),
@@ -38,8 +47,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     message = (
-        f"Welcome! Your User ID is: {chat_id}\n\n"
-        "Are you a reseller?\n"
+        "Welcome! Are you a reseller?\n"
         "Please choose Yes or No."
     )
     
@@ -78,67 +86,158 @@ async def handle_reseller_response(update: Update, context: ContextTypes.DEFAULT
 
     await query.message.reply_text(message)
 
-# Admin command to send a key (text or key string)
-async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Check if the user issuing the command is the admin
-    if update.message.chat_id != ADMIN_CHAT_ID:
-        await update.message.reply_text("You are not authorized to use this command.")
-        return
-    
-    # Command should be in the format: /send_key <user_id> <key>
-    if len(context.args) != 2:
-        await update.message.reply_text("Usage: /send_key <user_id> <key>")
-        return
-    
-    try:
-        user_id = int(context.args[0])  # Get user ID
-        key = context.args[1]  # Get the key (text-based key)
-        
-        # Send the key as a text message to the user
-        await context.bot.send_message(chat_id=user_id, text=f"Your key: {key}")
-        await update.message.reply_text(f"Key sent to user {user_id}.")
-    
-    except ValueError:
-        await update.message.reply_text("Invalid user ID or key format. Please try again.")
+    # Send QR code
+    generate_qr_code()
+    qr_image_path = os.path.join(IMAGE_FOLDER, "upi_qr.png")
 
-# Admin command to send an APK file that is uploaded "on the spot"
-async def send_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Check if the user issuing the command is the admin
-    if update.message.chat_id != ADMIN_CHAT_ID:
-        await update.message.reply_text("You are not authorized to use this command.")
-        return
-    
-    # Check if the admin has sent a document (APK file)
-    if update.message.document:
-        # Get user ID from the command args
-        if len(context.args) != 1:
-            await update.message.reply_text("Usage: /send_apk <user_id>")
-            return
-        
+    if os.path.exists(qr_image_path):
         try:
-            user_id = int(context.args[0])  # Get user ID
-            
-            # Get the document (APK) file ID
-            apk_file_id = update.message.document.file_id
-            
-            # Send the APK to the user
-            await context.bot.send_document(chat_id=user_id, document=apk_file_id)
-            await update.message.reply_text(f"APK sent to user {user_id}.")
-        
-        except ValueError:
-            await update.message.reply_text("Invalid user ID. Please try again.")
+            with open(qr_image_path, 'rb') as qr_file:
+                await context.bot.send_photo(chat_id=chat_id, photo=qr_file, caption="Scan this QR code to make a payment.")
+        except Exception as e:
+            await query.message.reply_text(f"Error sending QR code: {str(e)}")
     else:
-        await update.message.reply_text("Please upload an APK file with the command.")
+        await query.message.reply_text("QR code image not found. Please check the file location.")
 
+    user_payment_data[chat_id] = {"prices": prices}
+
+# Handle payment duration or quantity
+async def handle_duration_or_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    prices = user_payment_data.get(chat_id, {}).get("prices", {})
+
+    try:
+        input_data = update.message.text.split()
+        amount = int(input_data[0])
+        if chat_id in resellers:
+            if amount in prices:
+                duration = input_data[1]
+                if duration in prices[amount]:
+                    user_payment_data[chat_id]['amount'] = amount
+                    user_payment_data[chat_id]['duration'] = duration
+                    price = prices[amount][duration]
+                    await update.message.reply_text(f"Please send your payment screenshot for verification. The amount is {price} INR. Mention the amount you paid in your message.")
+                else:
+                    await update.message.reply_text("Invalid choice. Please select '1_day', '3_days', or '7_days'.")
+            else:
+                await update.message.reply_text("Invalid choice. Please select a valid key quantity (3, 5, 10).")
+        else:
+            days = amount
+            if days in prices:
+                user_payment_data[chat_id]['days'] = days
+                price = prices[days]
+                await update.message.reply_text(f"Please send your payment screenshot for verification. The amount is {price} INR. Mention the amount you paid in your message.")
+            else:
+                await update.message.reply_text("Invalid choice. Please select 1, 3, or 7 days.")
+    except ValueError:
+        await update.message.reply_text("Please enter a valid number and duration/key (e.g., '3 1_day' for resellers or '3' for regular users).")
+
+# Handle payment screenshot with amount
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    if 'amount' not in user_payment_data.get(chat_id, {}) and 'days' not in user_payment_data.get(chat_id, {}):
+        await update.message.reply_text("Please specify the number of days/keys first.")
+        return
+
+    user_message = update.message.caption
+    user = update.message.from_user
+    photo_id = update.message.photo[-1].file_id
+
+    if chat_id in resellers:
+        amount = user_payment_data[chat_id]['amount']
+        duration = user_payment_data[chat_id]['duration']
+        expected_price = user_payment_data[chat_id]['prices'][amount][duration]
+    else:
+        days = user_payment_data[chat_id]['days']
+        expected_price = user_payment_data[chat_id]['prices'][days]
+
+    # Extract the amount from the user's message
+    try:
+        user_paid_amount = int(user_message.split()[-1])
+    except (ValueError, IndexError):
+        await update.message.reply_text("Please include the amount you paid in your message with the screenshot.")
+        return
+
+    # Check if the paid amount matches the expected amount
+    if user_paid_amount != expected_price:
+        await update.message.reply_text(f"The amount you paid ({user_paid_amount} INR) does not match the expected amount ({expected_price} INR). Please check and send the correct amount.")
+        return
+
+    # Prepare the caption
+    if chat_id in resellers:
+        caption = (
+            f"Payment screenshot received from {user.first_name or 'User'} (@{user.username or 'N/A'}).\n"
+            f"User ID: {user.id}\nKeys: {amount}\nDuration: {duration}\nAmount Paid: {user_paid_amount} INR."
+        )
+    else:
+        caption = (
+            f"Payment screenshot received from {user.first_name or 'User'} (@{user.username or 'N/A'}).\n"
+            f"User ID: {user.id}\nDays: {days}\nAmount Paid: {user_paid_amount} INR."
+        )
+
+    # Truncate the caption if necessary
+    if len(caption) > 1024:  # Telegram's max caption length is 1024 characters
+        caption = caption[:1020] + "..."
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Approve", callback_data=f"approve:{chat_id}:{expected_price}"),
+            InlineKeyboardButton("Reject", callback_data=f"reject:{chat_id}"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Send the photo with the truncated caption
+    await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
+
+# Admin command to send APK
+async def send_apk(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    if chat_id == ADMIN_CHAT_ID:
+        if len(context.args) == 1:
+            user_id = int(context.args[0])
+            if update.message.document and update.message.document.file_name.endswith(".apk"):
+                apk_file = update.message.document
+                try:
+                    await context.bot.send_document(chat_id=user_id, document=apk_file.file_id, caption="Here is your APK file.")
+                    await update.message.reply_text(f"APK file sent to user {user_id}.")
+                except Exception as e:
+                    await update.message.reply_text(f"Error sending APK: {str(e)}")
+            else:
+                await update.message.reply_text("Please send a valid APK file.")
+        else:
+            await update.message.reply_text("Usage: /send_apk <user_id>")
+
+# Admin command to send key
+async def send_key(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat_id
+    if chat_id == ADMIN_CHAT_ID:
+        if len(context.args) == 2:
+            user_id = int(context.args[0])
+            key = context.args[1]
+            await context.bot.send_message(chat_id=user_id, text=f"Here is your key: {key}")
+            await update.message.reply_text(f"Key sent to user {user_id}.")
+        else:
+            await update.message.reply_text("Please provide a user ID and key. Usage: /send_key <user_id> <key>")
+
+# Main function to set up the bot
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
-    app.add_handler(CommandHandler("send_key", send_key))  # Command to send a key
-    app.add_handler(CommandHandler("send_apk", send_apk))  # Command to send APK
+    generate_qr_code()  # Ensure QR code exists
 
-    app.run_polling()
+    application = Application.builder().token(BOT_TOKEN).build()
+
+    # Handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(handle_reseller_response, pattern="^reseller_"))
+    application.add_handler(MessageHandler(filters.TEXT, handle_duration_or_quantity))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    application.add_handler(CallbackQueryHandler(admin_commands, pattern="^(approve|reject):"))
+    application.add_handler(CommandHandler("send_apk", send_apk))  # Add the send_apk command
+    application.add_handler(CommandHandler("send_key", send_key))  # Add the send_key command
+
+    # Run the bot
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
+    
