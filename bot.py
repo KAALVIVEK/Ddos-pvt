@@ -79,7 +79,7 @@ async def handle_reseller_response(update: Update, context: ContextTypes.DEFAULT
             f"Welcome! Please choose the number of days for which you are paying (1, 3, or 7 days):\n\n"
             f"Prices:\n{price_info}\n\n"
             f"Make your payment to the following UPI ID: {UPI_ID}\n\n"
-            f"Scan the QR code below to make the payment.\n\n"
+            f"Scan the QR code below to make a payment.\n\n"
             "After payment, send a screenshot of your payment here along with the amount you paid."
         )
 
@@ -182,19 +182,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Send the photo with the truncated caption
     await context.bot.send_photo(chat_id=ADMIN_CHAT_ID, photo=photo_id, caption=caption, reply_markup=reply_markup)
-    await update.message.reply_text("Thank you! Your payment is being verified by the admin.")
+    await update.message.reply_text("Your payment has been received. Awaiting approval from the admin.")
 
-# Admin approval or rejection
+# Admin approve or reject payment
 async def admin_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split(":")
+    action = data[0]
     user_id = int(data[1])
 
-    if data[0] == "approve":
-        amount = int(data[2])
-        await context.bot.send_message(chat_id=user_id, text="Your payment has been verified. The admin will send your key shortly.")
-        await query.edit_message_text(text=f"Approved user {user_id} for {amount}.")
-    elif data[0] == "reject":
+    if action == "approve":
+        await context.bot.send_message(chat_id=user_id, text="Your payment has been approved. You will receive the APK shortly.")
+        await query.edit_message_text(text=f"Approved user {user_id}.")
+    elif action == "reject":
         await context.bot.send_message(chat_id=user_id, text="Your payment has been rejected. Please check the amount and try again.")
         await query.edit_message_text(text=f"Rejected user {user_id}.")
 
@@ -248,3 +248,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
