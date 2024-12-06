@@ -171,7 +171,7 @@ async def send_key(update: Update, context) -> None:
             text=(
                 "Your payment has been approved!\n\n"
                 f"Here is your key: {key}\n\n"
-                f"Join our Telegram channel for updates: {telegram_channel_link}"
+                f"Join Channel for Setup and Updates: {telegram_channel_link}"
             )
         )
         await update.message.reply_text(f"Key successfully sent to user {user_id}.")
