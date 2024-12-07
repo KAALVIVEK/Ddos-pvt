@@ -3,9 +3,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 import os
 
 # Constants
-BOT_TOKEN = "7525850725:AAFj6u8yOSMr5oEYsXueSx9pQGAWoEEy5cc"  # Replace with your actual bot token
-ADMIN_CHAT_ID = 7083378335  # Replace with your admin's Telegram user ID
-UPI_ID = "kaalvivek@fam"  # Replace with your actual UPI ID
+BOT_TOKEN = "7525850725:7243095492:AAFIOpvDLv45g5PMk8tyUY0d5sb65RrErcQ"  # Replace with your actual bot token
+ADMIN_CHAT_ID = 5187934508  # Replace with your admin's Telegram user ID
+UPI_ID = "evilempire654@okicici"  # Replace with your actual UPI ID
 IMAGE_FOLDER = "images"
 TELEGRAM_CHANNEL_LINK = "https://t.me/+HEyXXgA_1hU4NmZl"  # Replace with your actual Telegram channel link
 
@@ -14,11 +14,11 @@ user_payment_data = {}
 resellers = set()
 
 # Prices
-regular_prices = {1: 150, 3: 300, 7: 700}
+regular_prices = {1: 200, 3: 300, 7: 700}
 reseller_prices = {
-    3: {'1_day': 450, '3_days': 900, '7_days': 2100},
-    5: {'1_day': 750, '3_days': 1500, '7_days': 3500},
-    10: {'1_day': 1500, '3_days': 3000, '7_days': 7000}
+    3: {'1_day': 150, '3_days': 750, '7_days': 1200},
+    5: {'1_day': 250, '3_days': 1250, '7_days': 2000},
+    10: {'1_day': 500, '3_days': 2500, '7_days': 4000}
 }
 
 # Key storage for uploaded keys
