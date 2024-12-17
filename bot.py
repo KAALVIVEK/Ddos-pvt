@@ -9,6 +9,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+import asyncio
 
 # Dictionary to store user images
 user_images: dict[int, list[str]] = {}
@@ -101,6 +102,17 @@ async def main() -> None:
     print("Bot is running...")
     await app.run_polling()
 
+# Properly handle the asyncio loop to prevent runtime errors
+def run_bot():
+    try:
+        asyncio.run(main())
+    except RuntimeError as e:
+        if str(e) == "Cannot close a running event loop":
+            # Get the current event loop and run the main coroutine
+            loop = asyncio.get_running_loop()
+            loop.create_task(main())
+        else:
+            raise
+
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    run_bot()
