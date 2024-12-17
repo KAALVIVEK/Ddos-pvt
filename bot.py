@@ -29,11 +29,17 @@ async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if user_id not in user_images:
         user_images[user_id] = []
 
-    # Save the received image
-    photo = update.message.photo[-1]
+    # Handle the uploaded file (whether it's an image or octet-stream)
+    photo = update.message.photo[-1] if update.message.photo else update.message.document
     file = await photo.get_file()
-    file_path = f"image_{user_id}_{len(user_images[user_id])}.jpg"
+    file_path = f"image_{user_id}_{len(user_images[user_id])}.jpg"  # Default save as .jpg
+
+    # Check if file is an octet-stream and handle it
+    if file.file_path.endswith('.octet-stream'):
+        file_path = f"image_{user_id}_{len(user_images[user_id])}.jpg"  # Default name as .jpg
     await file.download_to_drive(file_path)
+
+    # Add to user images list
     user_images[user_id].append(file_path)
 
     await update.message.reply_text(f"Image {len(user_images[user_id])}/2 received.")
