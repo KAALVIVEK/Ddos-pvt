@@ -3,7 +3,7 @@ import cv2
 from PIL import Image
 from telegram import Update, InputFile
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CommandHandler,
     MessageHandler,
     filters,
@@ -90,29 +90,32 @@ async def create_hug_video(user_id: int, update: Update, context: ContextTypes.D
     except Exception as e:
         await update.message.reply_text(f"An error occurred: {e}")
 
-async def main() -> None:
+def main():
     """Main entry point for the bot."""
     TOKEN = "7990858994:AAGBSDQnCuNcgHXRK2F2xc7NSMYdJUOUJF4"
 
-    app = ApplicationBuilder().token(TOKEN).build()
+    # Create the application
+    app = Application.builder().token(TOKEN).build()
 
+    # Add handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, receive_image))
 
-    print("Bot is running...")
-    await app.run_polling()
+    # Run the bot
+    async def run():
+        print("Bot is running...")
+        await app.start()
+        await app.updater.start_polling()
+        await app.idle()  # Wait for shutdown signal
 
-# Properly handle the asyncio loop to prevent runtime errors
-def run_bot():
+    # Handle asyncio loop properly
     try:
-        asyncio.run(main())
+        asyncio.run(run())
     except RuntimeError as e:
-        if str(e) == "Cannot close a running event loop":
-            # Get the current event loop and run the main coroutine
-            loop = asyncio.get_running_loop()
-            loop.create_task(main())
-        else:
-            raise
+        if "no running event loop" in str(e):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(run())
 
 if __name__ == "__main__":
-    run_bot()
+    main()
