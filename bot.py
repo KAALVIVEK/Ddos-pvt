@@ -87,6 +87,8 @@ async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> 
             "-pix_fmt", "yuv420p",  # Ensure compatibility
             hug_video_path
         ]
+
+        # Run the ffmpeg command and capture output
         result = subprocess.run(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # Check ffmpeg output
