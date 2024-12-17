@@ -28,6 +28,7 @@ async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     # If we have two images, process them
     if len(user_images[user_id]) == 2:
+        await update.message.reply_text("Processing your hug video, please wait...")
         await create_hug_video(user_id, context)
 
 async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -43,25 +44,35 @@ async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> 
         # Resize images to the same size
         img2 = img2.resize(img1.size)
 
-        # Create frames by alternating between images
-        frames = [cv2.imread(image1_path), cv2.imread(image2_path)] * 5  # 5 "hugs"
+        # Save resized images temporarily
+        img1.save(f"temp1_{user_id}.jpg")
+        img2.save(f"temp2_{user_id}.jpg")
 
-        # Get frame dimensions
-        height, width, _ = frames[0].shape
+        # Load resized images as OpenCV frames
+        frame1 = cv2.imread(f"temp1_{user_id}.jpg")
+        frame2 = cv2.imread(f"temp2_{user_id}.jpg")
+
+        # Create a list of frames alternating between the two images
+        frames = [frame1, frame2] * 5  # Alternate 5 times
+
+        # Video dimensions
+        height, width, _ = frame1.shape
         size = (width, height)
 
-        # Write frames to a video
+        # Write frames to the video
         out = cv2.VideoWriter(hug_video_path, cv2.VideoWriter_fourcc(*'mp4v'), 2, size)
         for frame in frames:
             out.write(frame)
         out.release()
 
-        # Send the video back to the user
+        # Send the video to the user
         await context.bot.send_video(chat_id=user_id, video=InputFile(hug_video_path), caption="Here's your hug video!")
 
-        # Clean up files
+        # Clean up temporary files
         os.remove(image1_path)
         os.remove(image2_path)
+        os.remove(f"temp1_{user_id}.jpg")
+        os.remove(f"temp2_{user_id}.jpg")
         os.remove(hug_video_path)
         del user_images[user_id]
 
@@ -80,3 +91,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
