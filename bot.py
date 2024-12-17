@@ -1,10 +1,10 @@
 import os
-import cv2
 from PIL import Image
+import subprocess
 from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Store user images in a dictionary
+# Dictionary to store user images
 user_images = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -12,7 +12,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Hi! Send me two pictures, and I'll create a hug video for you.")
 
 async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle receiving images and create a video if two images are received."""
+    """Handle image upload and process after receiving two images."""
     user_id = update.effective_chat.id
     if user_id not in user_images:
         user_images[user_id] = []
@@ -26,53 +26,61 @@ async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await update.message.reply_text(f"Image {len(user_images[user_id])}/2 received.")
 
-    # If we have two images, process them
+    # Once two images are received, create the hug video
     if len(user_images[user_id]) == 2:
         await update.message.reply_text("Processing your hug video, please wait...")
         await create_hug_video(user_id, context)
 
 async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Create a hug video from two images and send it to the user."""
+    """Create and send a hug video."""
     try:
         image1_path, image2_path = user_images[user_id]
         hug_video_path = f"hug_video_{user_id}.mp4"
 
-        # Load images
+        # Resize images to the same size using Pillow
         img1 = Image.open(image1_path)
         img2 = Image.open(image2_path)
+        img2 = img2.resize(img1.size)  # Resize img2 to match img1
 
-        # Resize images to the same size
-        img2 = img2.resize(img1.size)
+        # Save resized images
+        temp1_path = f"temp1_{user_id}.jpg"
+        temp2_path = f"temp2_{user_id}.jpg"
+        img1.save(temp1_path)
+        img2.save(temp2_path)
 
-        # Save resized images temporarily
-        img1.save(f"temp1_{user_id}.jpg")
-        img2.save(f"temp2_{user_id}.jpg")
+        # Generate a frame list for ffmpeg
+        frame_list_path = f"frames_{user_id}.txt"
+        with open(frame_list_path, "w") as f:
+            for _ in range(5):  # Alternate the two images 5 times
+                f.write(f"file '{temp1_path}'\n")
+                f.write(f"file '{temp2_path}'\n")
 
-        # Load resized images as OpenCV frames
-        frame1 = cv2.imread(f"temp1_{user_id}.jpg")
-        frame2 = cv2.imread(f"temp2_{user_id}.jpg")
+        # Use ffmpeg to create the video
+        ffmpeg_command = [
+            "ffmpeg",
+            "-y",  # Overwrite output file
+            "-f", "concat",
+            "-safe", "0",
+            "-i", frame_list_path,
+            "-vf", "fps=2",  # Frames per second
+            "-pix_fmt", "yuv420p",
+            hug_video_path
+        ]
+        subprocess.run(ffmpeg_command, check=True)
 
-        # Create a list of frames alternating between the two images
-        frames = [frame1, frame2] * 5  # Alternate 5 times
+        # Check if the video was created successfully
+        if not os.path.exists(hug_video_path) or os.stat(hug_video_path).st_size == 0:
+            raise ValueError("Video creation failed. File is empty or invalid.")
 
-        # Video dimensions
-        height, width, _ = frame1.shape
-        size = (width, height)
-
-        # Write frames to the video
-        out = cv2.VideoWriter(hug_video_path, cv2.VideoWriter_fourcc(*'mp4v'), 2, size)
-        for frame in frames:
-            out.write(frame)
-        out.release()
-
-        # Send the video to the user
+        # Send the generated video to the user
         await context.bot.send_video(chat_id=user_id, video=InputFile(hug_video_path), caption="Here's your hug video!")
 
-        # Clean up temporary files
+        # Cleanup temporary files
         os.remove(image1_path)
         os.remove(image2_path)
-        os.remove(f"temp1_{user_id}.jpg")
-        os.remove(f"temp2_{user_id}.jpg")
+        os.remove(temp1_path)
+        os.remove(temp2_path)
+        os.remove(frame_list_path)
         os.remove(hug_video_path)
         del user_images[user_id]
 
