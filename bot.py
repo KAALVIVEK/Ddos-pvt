@@ -4,15 +4,27 @@ import subprocess
 from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Dictionary to store user images
+# Store user images
 user_images = {}
+
+def resize_image(image: Image.Image) -> Image.Image:
+    """Resize image while ensuring dimensions are divisible by 2."""
+    width, height = image.size
+
+    # Adjust width and height to be divisible by 2
+    new_width = width if width % 2 == 0 else width - 1
+    new_height = height if height % 2 == 0 else height - 1
+
+    # Resize image to new dimensions while maintaining the aspect ratio
+    image = image.resize((new_width, new_height))
+    return image
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Respond to /start command."""
     await update.message.reply_text("Hi! Send me two pictures, and I'll create a hug video for you.")
 
 async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle image upload and process after receiving two images."""
+    """Handle receiving images and create a video if two images are received."""
     user_id = update.effective_chat.id
     if user_id not in user_images:
         user_images[user_id] = []
@@ -26,32 +38,35 @@ async def receive_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await update.message.reply_text(f"Image {len(user_images[user_id])}/2 received.")
 
-    # Once two images are received, create the hug video
+    # If we have two images, process them
     if len(user_images[user_id]) == 2:
         await update.message.reply_text("Processing your hug video, please wait...")
         await create_hug_video(user_id, context)
 
 async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Create and send a hug video."""
+    """Create a hug video from two images and send it to the user."""
     try:
         image1_path, image2_path = user_images[user_id]
         hug_video_path = f"hug_video_{user_id}.mp4"
 
-        # Resize images to the same size using Pillow
+        # Load and resize images, ensuring height and width are divisible by 2
         img1 = Image.open(image1_path)
         img2 = Image.open(image2_path)
-        img2 = img2.resize(img1.size)  # Resize img2 to match img1
 
-        # Save resized images
+        # Resize images to ensure dimensions are divisible by 2
+        img1 = resize_image(img1)
+        img2 = resize_image(img2)
+
+        # Save resized images temporarily
         temp1_path = f"temp1_{user_id}.jpg"
         temp2_path = f"temp2_{user_id}.jpg"
         img1.save(temp1_path)
         img2.save(temp2_path)
 
-        # Generate a frame list for ffmpeg
+        # Create a frame list file for ffmpeg
         frame_list_path = f"frames_{user_id}.txt"
         with open(frame_list_path, "w") as f:
-            for _ in range(5):  # Alternate the two images 5 times
+            for _ in range(5):  # Repeat each image 5 times for a hug effect
                 f.write(f"file '{temp1_path}'\n")
                 f.write(f"file '{temp2_path}'\n")
 
@@ -59,23 +74,27 @@ async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> 
         ffmpeg_command = [
             "ffmpeg",
             "-y",  # Overwrite output file
-            "-f", "concat",
-            "-safe", "0",
+            "-f", "concat",  # Concatenate frames
+            "-safe", "0",  # Allow unsafe file paths
             "-i", frame_list_path,
             "-vf", "fps=2",  # Frames per second
-            "-pix_fmt", "yuv420p",
+            "-pix_fmt", "yuv420p",  # Ensure compatibility
             hug_video_path
         ]
-        subprocess.run(ffmpeg_command, check=True)
+        result = subprocess.run(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # Check if the video was created successfully
+        # Check ffmpeg output
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg error: {result.stderr.decode()}")
+
+        # Validate the video file
         if not os.path.exists(hug_video_path) or os.stat(hug_video_path).st_size == 0:
             raise ValueError("Video creation failed. File is empty or invalid.")
 
-        # Send the generated video to the user
+        # Send the video to the user
         await context.bot.send_video(chat_id=user_id, video=InputFile(hug_video_path), caption="Here's your hug video!")
 
-        # Cleanup temporary files
+        # Clean up temporary files
         os.remove(image1_path)
         os.remove(image2_path)
         os.remove(temp1_path)
@@ -85,7 +104,7 @@ async def create_hug_video(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> 
         del user_images[user_id]
 
     except Exception as e:
-        await context.bot.send_message(chat_id=user_id, text=f"An error occurred: {e}")
+        await context.bot.send_message(chat_id=user_id, text=f"An error occurred while creating your video: {e}")
 
 def main() -> None:
     """Run the bot."""
@@ -99,4 +118,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    
