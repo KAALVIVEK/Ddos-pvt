@@ -13,7 +13,7 @@ UPI_ID = "kaalvivek@fam"
 
 # Price dictionary
 PRICES = {
-    "safe_server": {"1_day": 100, "3_days": 250, "1_week": 450},
+    "magic_server": {"1_day": 150, "7_days": 800, "1_month": 1800},
     "brutal_server": {"1_day": 200, "3_days": 300, "1_week": 700},
 }
 
@@ -37,7 +37,7 @@ async def start(event):
         "Commands:\n"
         "/buy - View available servers and pricing.\n"
         "/select <server> <duration> - Generate a QR code for payment.\n"
-        "Example: `/select safe_server 1_day`.\n\n"
+        "Example: `/select magic_server 1_day`.\n\n"
         "Have questions? Just ask!"
     )
     await event.reply(welcome_message)
@@ -47,10 +47,10 @@ async def buy(event):
     """Handles the /buy command."""
     message = (
         "Available Keys:\n\n"
-        "1️⃣ Safe Server:\n"
-        "   1 Day - ₹100\n"
-        "   3 Days - ₹250\n"
-        "   1 Week - ₹450\n\n"
+        "1️⃣ Magic Server:\n"
+        "   1 Day - ₹150\n"
+        "   7 Days - ₹800\n"
+        "   1 Month - ₹1800\n\n"
         "2️⃣ Brutal Server:\n"
         "   1 Day - ₹200\n"
         "   3 Days - ₹300\n"
