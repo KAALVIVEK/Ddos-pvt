@@ -1,14 +1,13 @@
 from telethon import TelegramClient, events
 import qrcode
-from io import BytesIO
-from PIL import Image
+import os
 
 # Telegram API credentials
 api_id = "27403509"
 api_hash = "30515311a8dbe44c670841615688cee4"
 
 # Payment details
-UPI_ID = "55629754942@ybl"
+UPI_ID = "kaalvivek@fam"
 
 # Price dictionary
 PRICES = {
@@ -66,10 +65,9 @@ async def select(event):
         qr.make(fit=True)
         img = qr.make_image(fill="black", back_color="white")
 
-        # Save QR code to a buffer as a valid PNG
-        buffer = BytesIO()
-        img.save(buffer, format="PNG")
-        buffer.seek(0)  # Reset the buffer pointer to the beginning
+        # Save QR code to a file
+        file_path = f"{server}_{duration}.png"
+        img.save(file_path)
 
         # Send QR code as an image
         await event.reply(
@@ -77,7 +75,10 @@ async def select(event):
             f"Price: ₹{price}\n"
             f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`"
         )
-        await client.send_file(event.chat_id, buffer, caption="Scan to Pay", attributes=None)
+        await client.send_file(event.chat_id, file_path, caption="Scan to Pay")
+        
+        # Remove the file after sending
+        os.remove(file_path)
     except KeyError:
         await event.reply("Invalid selection. Please use `/buy` to see valid options.")
 
