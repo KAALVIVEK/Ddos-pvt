@@ -1,6 +1,7 @@
 from telethon import TelegramClient, events
 import qrcode
 from io import BytesIO
+from PIL import Image
 
 # Telegram API credentials
 api_id = "27403509"
@@ -76,7 +77,7 @@ async def select(event):
             f"Price: ₹{price}\n"
             f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`"
         )
-        await client.send_file(event.chat_id, buffer, caption="Scan to Pay", attributes=None, force_document=False)
+        await client.send_file(event.chat_id, buffer, caption="Scan to Pay", attributes=None)
     except KeyError:
         await event.reply("Invalid selection. Please use `/buy` to see valid options.")
 
