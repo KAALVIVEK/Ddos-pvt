@@ -1,10 +1,11 @@
 from telethon import TelegramClient, events, Button
 import qrcode
 import os
+import re
 
 # Telegram API credentials
-api_id = "27403509"  # Replace with your API ID
-api_hash = "30515311a8dbe44c670841615688cee4"  # Replace with your API Hash
+api_id = "27403509"
+api_hash = "30515311a8dbe44c670841615688cee4"
 
 # Payment details
 UPI_ID = "kaalvivek@fam"
@@ -15,20 +16,21 @@ PRICES = {
     "brutal_server": {"1_day": 200},
 }
 
-# Key files (Storing keys in bulk as a single file per server)
+# Key files (Storing keys in bulk with duration included)
 KEY_FILES = {
     "magic_server": r"keys/magic_server_keys.txt",
     "brutal_server": r"keys/brutal_server_keys.txt",
 }
 
-# Owner's Telegram ID
-YOUR_OWNER_TELEGRAM_ID = 7083378335  # Replace with your Telegram user ID
-
-# Initialize Telegram client
+# Telegram bot session
 client = TelegramClient('buy_keys_session', api_id, api_hash)
 
 # Dictionary to store pending payments
 pending_payments = {}
+
+# Owner ID (replace with your Telegram ID)
+YOUR_OWNER_TELEGRAM_ID = 7083378335  # Replace with your Telegram ID
+
 
 @client.on(events.NewMessage(pattern=r'/start'))
 async def start(event):
@@ -42,6 +44,7 @@ async def start(event):
         "Have questions? Just ask!"
     )
     await event.reply(welcome_message)
+
 
 @client.on(events.NewMessage(pattern=r'/buy'))
 async def buy(event):
@@ -60,6 +63,7 @@ async def buy(event):
     )
     await event.reply(message)
 
+
 @client.on(events.NewMessage(pattern=r'/select (.+) (.+)'))
 async def select(event):
     """Handles the /select command."""
@@ -67,7 +71,7 @@ async def select(event):
         # Parse user input
         server, duration = event.pattern_match.groups()
         price = PRICES[server][duration]
-        
+
         # Generate UPI QR code
         upi_string = f"upi://pay?pa={UPI_ID}&pn=YourName&am={price}&cu=INR"
         qr = qrcode.QRCode(version=1, box_size=10, border=4)
@@ -86,27 +90,16 @@ async def select(event):
         await event.reply(
             f"Selected: {server.replace('_', ' ').title()}, {duration.replace('_', ' ').title()}\n"
             f"Price: ₹{price}\n"
-            f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`."
+            f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`\n"
+            f"Payment will be approved by the ID owner."
         )
         await client.send_file(event.chat_id, file_path, caption="Scan to Pay")
-
-        # Notify the owner about the payment request
-        await client.send_message(
-            YOUR_OWNER_TELEGRAM_ID,
-            f"📝 Payment request received:\n\n"
-            f"User: {event.chat_id}\n"
-            f"Server: {server}\n"
-            f"Duration: {duration}\n"
-            f"Price: ₹{price}\n\n"
-            f"Reply to this message and use `/approve` to approve the payment."
-        )
 
         # Remove the file after sending
         os.remove(file_path)
     except KeyError:
         await event.reply("Invalid selection. Please use `/buy` to see valid options.")
-    except Exception as e:
-        await event.reply(f"An error occurred: {e}")
+
 
 @client.on(events.NewMessage(pattern=r'/approve'))
 async def approve_payment_in_chat(event):
@@ -131,20 +124,24 @@ async def approve_payment_in_chat(event):
             server, duration, _ = pending_payments.pop(user_id)
             key_file = KEY_FILES[server]
 
-            # Read the key from the file
+            # Read keys from the file
             with open(key_file, 'r') as f:
                 keys = f.readlines()
 
-            # Map duration to key index
-            duration_map = {
-                "1_day": 0,
-                "7_days": 1,
-                "1_month": 2,
-            }
-            key_index = duration_map.get(duration)
+            # Find the first matching key for the duration
+            key = None
+            remaining_keys = []
+            for line in keys:
+                key_data = line.strip().split(" ", 1)  # Split key and duration
+                if len(key_data) == 2 and key_data[1] == duration:
+                    key = key_data[0]  # Use this key
+                    continue
+                remaining_keys.append(line)  # Keep unmatched keys
 
-            if key_index is not None and key_index < len(keys):
-                key = keys[key_index].strip()  # Fetch the appropriate key
+            if key:
+                # Save the remaining keys back to the file
+                with open(key_file, 'w') as f:
+                    f.writelines(remaining_keys)
 
                 # Send the key to the user
                 await client.send_message(
@@ -154,11 +151,12 @@ async def approve_payment_in_chat(event):
                 )
                 await event.reply(f"✅ Payment approved for user {user_id}. Key sent!")
             else:
-                await event.reply("Invalid duration or no keys available for the selected server.")
+                await event.reply("No keys available for the selected server and duration.")
         else:
             await event.reply("No pending payment found for this user ID.")
     except Exception as e:
         await event.reply(f"An error occurred: {str(e)}")
+
 
 # Start the client
 print("Bot is running...")
