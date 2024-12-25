@@ -18,8 +18,8 @@ PRICES = {
 
 # Key files (Storing keys in bulk as a single file per server)
 KEY_FILES = {
-    "safe_server": r"keys\safe_server_keys.txt",  
-    "brutal_server": r"keys\brutal_server_keys.txt",  
+    "safe_server": r"keys/safe_server_keys.txt",  
+    "brutal_server": r"keys/brutal_server_keys.txt",  
 }
 
 # Initialize Telegram client
@@ -28,7 +28,7 @@ client = TelegramClient('buy_keys_session', api_id, api_hash)
 # Dictionary to store pending payments
 pending_payments = {}
 
-@client.on(events.NewMessage(pattern='/start'))
+@client.on(events.NewMessage(pattern=r'/start'))
 async def start(event):
     """Handles the /start command."""
     welcome_message = (
@@ -41,7 +41,7 @@ async def start(event):
     )
     await event.reply(welcome_message)
 
-@client.on(events.NewMessage(pattern='/buy'))
+@client.on(events.NewMessage(pattern=r'/buy'))
 async def buy(event):
     """Handles the /buy command."""
     message = (
@@ -58,7 +58,7 @@ async def buy(event):
     )
     await event.reply(message)
 
-@client.on(events.NewMessage(pattern='/select (.+) (.+)'))
+@client.on(events.NewMessage(pattern=r'/select (.+) (.+)'))
 async def select(event):
     """Handles the /select command."""
     try:
@@ -101,7 +101,7 @@ async def select(event):
     except KeyError:
         await event.reply("Invalid selection. Please use `/buy` to see valid options.")
 
-@client.on(events.CallbackQuery(data=re.compile(b"approve_(\d+)")))
+@client.on(events.CallbackQuery(data=re.compile(rb"approve_(\d+)")))
 async def approve(event):
     """Handles the approval button click."""
     user_id = int(event.data.decode().split("_")[1])
