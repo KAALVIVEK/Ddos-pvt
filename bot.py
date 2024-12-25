@@ -7,7 +7,7 @@ api_id = "27403509"
 api_hash = "30515311a8dbe44c670841615688cee4"
 
 # Payment details
-UPI_ID = "kaalvivek@fam"
+UPI_ID = "55629754942@ybl"
 
 # Price dictionary
 PRICES = {
@@ -20,6 +20,7 @@ client = TelegramClient('buy_keys_session', api_id, api_hash)
 
 @client.on(events.NewMessage(pattern='/start'))
 async def start(event):
+    """Handles the /start command."""
     welcome_message = (
         "👋 Welcome to the Key Buying Service Bot!\n\n"
         "Commands:\n"
@@ -32,6 +33,7 @@ async def start(event):
 
 @client.on(events.NewMessage(pattern='/buy'))
 async def buy(event):
+    """Handles the /buy command."""
     message = (
         "Available Keys:\n\n"
         "1️⃣ Safe Server:\n"
@@ -50,6 +52,7 @@ async def buy(event):
 
 @client.on(events.NewMessage(pattern='/select (.+) (.+)'))
 async def select(event):
+    """Handles the /select command."""
     try:
         # Parse user input
         server, duration = event.pattern_match.groups()
@@ -67,13 +70,13 @@ async def select(event):
         img.save(buffer, format="PNG")
         buffer.seek(0)  # Reset the buffer pointer to the beginning
 
-        # Send QR code as a PNG image
+        # Send QR code as an image
         await event.reply(
             f"Selected: {server.replace('_', ' ').title()}, {duration.replace('_', ' ').title()}\n"
             f"Price: ₹{price}\n"
             f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`"
         )
-        await client.send_file(event.chat_id, buffer, caption="UPI QR Code", force_document=False)
+        await client.send_file(event.chat_id, buffer, caption="Scan to Pay", attributes=None, force_document=False)
     except KeyError:
         await event.reply("Invalid selection. Please use `/buy` to see valid options.")
 
