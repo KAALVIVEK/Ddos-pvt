@@ -1,11 +1,10 @@
 from telethon import TelegramClient, events, Button
 import qrcode
 import os
-import re
 
 # Telegram API credentials
-api_id = "27403509"
-api_hash = "30515311a8dbe44c670841615688cee4"
+api_id = "27403509"  # Replace with your API ID
+api_hash = "30515311a8dbe44c670841615688cee4"  # Replace with your API Hash
 
 # Payment details
 UPI_ID = "kaalvivek@fam"
@@ -18,9 +17,12 @@ PRICES = {
 
 # Key files (Storing keys in bulk as a single file per server)
 KEY_FILES = {
-    "safe_server": r"keys/safe_server_keys.txt",  
-    "brutal_server": r"keys/brutal_server_keys.txt",  
+    "magic_server": r"keys/magic_server_keys.txt",
+    "brutal_server": r"keys/brutal_server_keys.txt",
 }
+
+# Owner's Telegram ID
+YOUR_OWNER_TELEGRAM_ID = 7083378335  # Replace with your Telegram user ID
 
 # Initialize Telegram client
 client = TelegramClient('buy_keys_session', api_id, api_hash)
@@ -84,52 +86,79 @@ async def select(event):
         await event.reply(
             f"Selected: {server.replace('_', ' ').title()}, {duration.replace('_', ' ').title()}\n"
             f"Price: ₹{price}\n"
-            f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`\n"
-            f"Payment will be approved by the ID owner."
+            f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`."
         )
         await client.send_file(event.chat_id, file_path, caption="Scan to Pay")
 
-        # Notify the owner with an inline button for approval
+        # Notify the owner about the payment request
         await client.send_message(
-            event.chat_id,  # Sending the message to the same chat where the bot is running
-            f"Payment pending approval:\nUser: {event.chat_id}\nServer: {server}\nDuration: {duration}\nPrice: ₹{price}\nUPI ID: {UPI_ID}",
-            buttons=[Button.inline("Approve Payment", data=f"approve_{event.chat_id}")]
+            YOUR_OWNER_TELEGRAM_ID,
+            f"📝 Payment request received:\n\n"
+            f"User: {event.chat_id}\n"
+            f"Server: {server}\n"
+            f"Duration: {duration}\n"
+            f"Price: ₹{price}\n\n"
+            f"Reply to this message and use `/approve` to approve the payment."
         )
-        
+
         # Remove the file after sending
         os.remove(file_path)
     except KeyError:
         await event.reply("Invalid selection. Please use `/buy` to see valid options.")
+    except Exception as e:
+        await event.reply(f"An error occurred: {e}")
 
-@client.on(events.CallbackQuery(data=re.compile(rb"approve_(\d+)")))
-async def approve(event):
-    """Handles the approval button click."""
-    user_id = int(event.data.decode().split("_")[1])
-    if user_id in pending_payments:
-        server, duration, _ = pending_payments.pop(user_id)
-        key_file = KEY_FILES[server]
-        
-        # Read the key from the file (Selecting the correct key based on duration)
-        with open(key_file, 'r') as f:
-            keys = f.readlines()
+@client.on(events.NewMessage(pattern=r'/approve'))
+async def approve_payment_in_chat(event):
+    """Handles the /approve command dynamically by replying to a message."""
+    # Restrict this command to the owner
+    if event.sender_id != YOUR_OWNER_TELEGRAM_ID:
+        await event.reply("Unauthorized access. This command is for the owner only.")
+        return
 
-        duration_map = {
-            "1_day": 0,
-            "7_days": 1,
-            "1_month": 2,
-        }
-        
-        key_index = duration_map.get(duration)
-        if key_index is not None and key_index < len(keys):
-            key = keys[key_index].strip()  # Get the key for the selected duration
-            
-            # Send the key to the user
-            await client.send_message(user_id, f"Your key for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()}):\n{key}")
-            await event.edit(f"Payment approved and key sent to user {user_id}.")
+    # Check if the message is a reply
+    if not event.is_reply:
+        await event.reply("Please reply to the customer's payment confirmation message to approve.")
+        return
+
+    try:
+        # Fetch the replied message and extract the user ID
+        replied_message = await event.get_reply_message()
+        user_id = replied_message.sender_id
+
+        # Check if the user has a pending payment
+        if user_id in pending_payments:
+            server, duration, _ = pending_payments.pop(user_id)
+            key_file = KEY_FILES[server]
+
+            # Read the key from the file
+            with open(key_file, 'r') as f:
+                keys = f.readlines()
+
+            # Map duration to key index
+            duration_map = {
+                "1_day": 0,
+                "7_days": 1,
+                "1_month": 2,
+            }
+            key_index = duration_map.get(duration)
+
+            if key_index is not None and key_index < len(keys):
+                key = keys[key_index].strip()  # Fetch the appropriate key
+
+                # Send the key to the user
+                await client.send_message(
+                    user_id,
+                    f"✅ Payment approved!\nHere is your key for {server.replace('_', ' ').title()} "
+                    f"({duration.replace('_', ' ').title()}):\n`{key}`"
+                )
+                await event.reply(f"✅ Payment approved for user {user_id}. Key sent!")
+            else:
+                await event.reply("Invalid duration or no keys available for the selected server.")
         else:
-            await event.edit("Invalid duration or keys not available.")
-    else:
-        await event.edit("No pending payment found for the specified user ID.")
+            await event.reply("No pending payment found for this user ID.")
+    except Exception as e:
+        await event.reply(f"An error occurred: {str(e)}")
 
 # Start the client
 print("Bot is running...")
