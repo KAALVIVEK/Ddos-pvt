@@ -1,14 +1,13 @@
-from telethon import TelegramClient, events, Button
+import time
 import qrcode
 import os
+from telethon import TelegramClient, events
 import re
 
-# Telegram API credentials
+# UPI ID and Telegram API credentials
+UPI_ID = "kaalvivek@fam"
 api_id = "27403509"
 api_hash = "30515311a8dbe44c670841615688cee4"
-
-# Payment details
-UPI_ID = "kaalvivek@fam"
 
 # Price dictionary
 PRICES = {
@@ -16,149 +15,104 @@ PRICES = {
     "brutal_server": {"1_day": 200},
 }
 
-# Key files (Storing keys in bulk with duration included)
-KEY_FILES = {
-    "magic_server": r"keys/magic_server_keys.txt",
-    "brutal_server": r"keys/brutal_server_keys.txt",
-}
-
-# Telegram bot session
+# Initialize the Telegram Client
 client = TelegramClient('buy_keys_session', api_id, api_hash)
 
-# Dictionary to store pending payments
+# Dictionary to store pending payments (chat_id -> transaction_id, amount)
 pending_payments = {}
 
-# Owner ID (replace with your Telegram ID)
-YOUR_OWNER_TELEGRAM_ID = 7083378335  # Replace with your Telegram ID
+# Function to generate a unique UPI QR code
+def generate_upi_qr(amount, transaction_id):
+    upi_string = f"upi://pay?pa={UPI_ID}&pn=YourName&am={amount}&cu=INR&tn=TransactionID_{transaction_id}"
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(upi_string)
+    qr.make(fit=True)
+    img = qr.make_image(fill="black", back_color="white")
 
+    # Save the QR code to a file
+    file_path = f"qr_{transaction_id}.png"
+    img.save(file_path)
+    return file_path, upi_string
 
-@client.on(events.NewMessage(pattern=r'/start'))
-async def start(event):
-    """Handles the /start command."""
-    welcome_message = (
-        "👋 Welcome to the Key Buying Service Bot!\n\n"
-        "Commands:\n"
-        "/buy - View available servers and pricing.\n"
-        "/select <server> <duration> - Generate a QR code for payment.\n"
-        "Example: `/select magic_server 1_day`.\n\n"
-        "Have questions? Just ask!"
-    )
-    await event.reply(welcome_message)
-
-
-@client.on(events.NewMessage(pattern=r'/buy'))
-async def buy(event):
-    """Handles the /buy command."""
-    message = (
-        "Available Keys:\n\n"
-        "1️⃣ Magic Server:\n"
-        "   1 Day - ₹150\n"
-        "   7 Days - ₹800\n"
-        "   1 Month - ₹1800\n\n"
-        "2️⃣ Brutal Server:\n"
-        "   1 Day - ₹200\n\n"
-        "Reply with:\n"
-        "`/select <server> <duration>`\n"
-        "Example: `/select magic_server 1_day`"
-    )
-    await event.reply(message)
-
-
+# Command to handle server selection and payment generation
 @client.on(events.NewMessage(pattern=r'/select (.+) (.+)'))
 async def select(event):
-    """Handles the /select command."""
     try:
         # Parse user input
         server, duration = event.pattern_match.groups()
+        
+        # Check if the server and duration exist in the price dictionary
+        if server not in PRICES or duration not in PRICES[server]:
+            await event.reply("❌ Invalid selection. Use `/buy` to see valid options.")
+            return
+        
+        # Get price for the selected server and duration
         price = PRICES[server][duration]
-
-        # Generate UPI QR code
-        upi_string = f"upi://pay?pa={UPI_ID}&pn=YourName&am={price}&cu=INR"
-        qr = qrcode.QRCode(version=1, box_size=10, border=4)
-        qr.add_data(upi_string)
-        qr.make(fit=True)
-        img = qr.make_image(fill="black", back_color="white")
-
-        # Save QR code to a file
-        file_path = f"{server}_{duration}.png"
-        img.save(file_path)
+        transaction_id = int(time.time())  # Generate a unique transaction ID
+        
+        # Generate the UPI QR code
+        qr_path, upi_link = generate_upi_qr(price, transaction_id)
 
         # Store the pending payment
-        pending_payments[event.chat_id] = (server, duration, file_path)
+        pending_payments[event.chat_id] = {
+            "transaction_id": transaction_id, 
+            "amount": price, 
+            "server": server,
+            "duration": duration,
+            "qr_path": qr_path
+        }
 
         # Send the QR code to the user
-        await event.reply(
-            f"Selected: {server.replace('_', ' ').title()}, {duration.replace('_', ' ').title()}\n"
-            f"Price: ₹{price}\n"
-            f"Scan the QR code below to complete the payment or use this UPI ID: `{UPI_ID}`\n"
-            f"Payment will be approved by the ID owner."
-        )
-        await client.send_file(event.chat_id, file_path, caption="Scan to Pay")
+        await event.reply(f"Please scan the QR code to pay ₹{price} for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()}). After payment, reply with your OTR number to verify.")
+        await client.send_file(event.chat_id, qr_path, caption=f"Pay ₹{price} for {server.replace('_', ' ').title()} - {duration.replace('_', ' ').title()}")
 
-        # Remove the file after sending
-        os.remove(file_path)
+        # Clean up by deleting the QR code image after sending it
+        os.remove(qr_path)
+
     except KeyError:
-        await event.reply("Invalid selection. Please use `/buy` to see valid options.")
+        await event.reply("❌ Invalid selection. Please use `/buy` to see valid options.")
 
+# Command to verify the payment
+@client.on(events.NewMessage(pattern=r'/verify (.+)'))
+async def verify_payment(event):
+    otr_number = event.pattern_match.group(1)
 
-@client.on(events.NewMessage(pattern=r'/approve'))
-async def approve_payment_in_chat(event):
-    """Handles the /approve command dynamically by replying to a message."""
-    # Restrict this command to the owner
-    if event.sender_id != YOUR_OWNER_TELEGRAM_ID:
-        await event.reply("Unauthorized access. This command is for the owner only.")
+    # Check if the user has any pending payments
+    if event.chat_id not in pending_payments:
+        await event.reply("❌ No pending payments found. Please use `/select <server> <duration>` to make a payment first.")
         return
 
-    # Check if the message is a reply
-    if not event.is_reply:
-        await event.reply("Please reply to the customer's payment confirmation message to approve.")
-        return
+    # Retrieve the pending payment details
+    payment_details = pending_payments[event.chat_id]
+    transaction_id = payment_details["transaction_id"]
+    amount = payment_details["amount"]
+    server = payment_details["server"]
+    duration = payment_details["duration"]
 
-    try:
-        # Fetch the replied message and extract the user ID
-        replied_message = await event.get_reply_message()
-        user_id = replied_message.sender_id
+    # Simulate verifying the OTR (this part can be automated using SMS scraping, email parsing, etc.)
+    if verify_transaction(otr_number, amount):
+        # Payment verified successfully
+        await event.reply(f"✅ Payment of ₹{amount} with OTR {otr_number} verified successfully! You have selected {server.replace('_', ' ').title()} for {duration.replace('_', ' ').title()}.")
+        await send_key(event.chat_id, server, duration)
+        del pending_payments[event.chat_id]  # Remove the pending payment
+    else:
+        await event.reply("❌ Payment verification failed. Please check the OTR and try again.")
 
-        # Check if the user has a pending payment
-        if user_id in pending_payments:
-            server, duration, _ = pending_payments.pop(user_id)
-            key_file = KEY_FILES[server]
+# Simulated payment verification (this would be more complex in a real system)
+def verify_transaction(otr_number, amount):
+    # Simulated check: In real scenarios, this could involve matching the OTR and amount with data from your payment provider.
+    # For now, we assume the OTR matches the expected format, and the amount is correct.
+    expected_otr = f"TransactionID_{int(time.time()) - 1}"  # Simulated expected OTR based on a previous transaction ID
+    if otr_number == expected_otr and amount == 150:
+        return True
+    return False
 
-            # Read keys from the file
-            with open(key_file, 'r') as f:
-                keys = f.readlines()
+# Function to simulate sending a key after payment verification
+async def send_key(chat_id, server, duration):
+    # Simulate sending a key for the server
+    key = f"YourServerKey123456 for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()})"
+    await client.send_message(chat_id, f"Here is your server key: {key}")
 
-            # Find the first matching key for the duration
-            key = None
-            remaining_keys = []
-            for line in keys:
-                key_data = line.strip().split(" ", 1)  # Split key and duration
-                if len(key_data) == 2 and key_data[1] == duration:
-                    key = key_data[0]  # Use this key
-                    continue
-                remaining_keys.append(line)  # Keep unmatched keys
-
-            if key:
-                # Save the remaining keys back to the file
-                with open(key_file, 'w') as f:
-                    f.writelines(remaining_keys)
-
-                # Send the key to the user
-                await client.send_message(
-                    user_id,
-                    f"✅ Payment approved!\nHere is your key for {server.replace('_', ' ').title()} "
-                    f"({duration.replace('_', ' ').title()}):\n`{key}`"
-                )
-                await event.reply(f"✅ Payment approved for user {user_id}. Key sent!")
-            else:
-                await event.reply("No keys available for the selected server and duration.")
-        else:
-            await event.reply("No pending payment found for this user ID.")
-    except Exception as e:
-        await event.reply(f"An error occurred: {str(e)}")
-
-
-# Start the client
-print("Bot is running...")
+# Start the Telegram client
 client.start()
 client.run_until_disconnected()
