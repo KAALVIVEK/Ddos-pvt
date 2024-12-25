@@ -37,6 +37,7 @@ def generate_upi_qr(amount, transaction_id):
 # Command to handle server selection and payment generation
 @client.on(events.NewMessage(pattern=r'/select (.+) (.+)'))
 async def select(event):
+    print(f"Received /select command from chat {event.chat_id}")  # Debug print
     try:
         # Parse user input
         server, duration = event.pattern_match.groups()
@@ -75,6 +76,7 @@ async def select(event):
 # Command to verify the payment
 @client.on(events.NewMessage(pattern=r'/verify (.+)'))
 async def verify_payment(event):
+    print(f"Received /verify command from chat {event.chat_id}")  # Debug print
     otr_number = event.pattern_match.group(1)
 
     # Check if the user has any pending payments
@@ -114,5 +116,6 @@ async def send_key(chat_id, server, duration):
     await client.send_message(chat_id, f"Here is your server key: {key}")
 
 # Start the Telegram client
+print("Bot is starting...")  # Debug print to check if bot is starting
 client.start()
 client.run_until_disconnected()
