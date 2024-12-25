@@ -1,7 +1,6 @@
 from telethon import TelegramClient, events, Button
 import qrcode
 import os
-import random
 import re
 
 # Telegram API credentials
@@ -14,13 +13,13 @@ UPI_ID = "kaalvivek@fam"
 # Price dictionary
 PRICES = {
     "magic_server": {"1_day": 150, "7_days": 800, "1_month": 1800},
-    "brutal_server": {"1_day": 200, "3_days": 300, "1_week": 700},
+    "brutal_server": {"1_day": 200},
 }
 
 # Key files (Storing keys in bulk as a single file per server)
 KEY_FILES = {
-    "safe_server": "keys/safe_server_keys.txt",  # A file containing keys for all durations
-    "brutal_server": "keys/brutal_server_keys.txt",  # A file containing keys for all durations
+    "safe_server": r"keys\safe_server_keys.txt",  
+    "brutal_server": r"keys\brutal_server_keys.txt",  
 }
 
 # Initialize Telegram client
@@ -52,12 +51,10 @@ async def buy(event):
         "   7 Days - ₹800\n"
         "   1 Month - ₹1800\n\n"
         "2️⃣ Brutal Server:\n"
-        "   1 Day - ₹200\n"
-        "   3 Days - ₹300\n"
-        "   1 Week - ₹700\n\n"
+        "   1 Day - ₹200\n\n"
         "Reply with:\n"
         "`/select <server> <duration>`\n"
-        "Example: `/select safe_server 1_day`"
+        "Example: `/select magic_server 1_day`"
     )
     await event.reply(message)
 
@@ -116,18 +113,21 @@ async def approve(event):
         with open(key_file, 'r') as f:
             keys = f.readlines()
 
-        # Select the appropriate key based on the duration
-        key_index = {
+        duration_map = {
             "1_day": 0,
-            "3_days": 1,
-            "1_week": 2
-        }[duration]
-
-        key = keys[key_index].strip()  # Get the key for the selected duration
+            "7_days": 1,
+            "1_month": 2,
+        }
         
-        # Send the key to the user
-        await client.send_message(user_id, f"Your key for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()}):\n{key}")
-        await event.edit(f"Payment approved and key sent to user {user_id}.")
+        key_index = duration_map.get(duration)
+        if key_index is not None and key_index < len(keys):
+            key = keys[key_index].strip()  # Get the key for the selected duration
+            
+            # Send the key to the user
+            await client.send_message(user_id, f"Your key for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()}):\n{key}")
+            await event.edit(f"Payment approved and key sent to user {user_id}.")
+        else:
+            await event.edit("Invalid duration or keys not available.")
     else:
         await event.edit("No pending payment found for the specified user ID.")
 
