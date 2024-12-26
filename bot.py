@@ -36,7 +36,7 @@ key_prices = {
         "7_Days": 450,
         "1_Month": 1000
     },
-    "another_server": {
+    "not available_server": {
         "1_month": 150,
         "3_months": 350,
         "6_months": 600
@@ -95,7 +95,7 @@ async def show_servers(event):
     
     await event.reply(available_servers)
 
-@client.on(events.NewMessage(pattern='/buy (\w+) (\w+)'))
+@client.on(events.NewMessage(pattern=r'/buy (\w+) (\w+)'))
 async def process_buy(event):
     user_id = event.sender_id
     message = event.message.message.split()
@@ -162,3 +162,4 @@ async def main():
 # Run the client
 import asyncio
 asyncio.run(main())
+    
