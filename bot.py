@@ -2,12 +2,11 @@ import uuid
 import qrcode
 import sqlite3
 from telethon import TelegramClient, events
-import os
 
-# Your Telegram API configuration (use environment variables for better security)
-api_id = os.getenv('27403509')
-api_hash = os.getenv('30515311a8dbe44c670841615688cee4')
-phone_number = os.getenv('+917814581929')  # Your phone number associated with the account
+# Your Telegram API configuration
+api_id = '27403509'  # Replace with your Telegram API ID
+api_hash = '30515311a8dbe44c670841615688cee4'  # Replace with your Telegram API Hash
+phone_number = '+917814581929'  # Your phone number associated with the account
 
 client = TelegramClient('session_name', api_id, api_hash)
 
