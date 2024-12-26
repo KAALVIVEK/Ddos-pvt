@@ -2,6 +2,7 @@ import uuid
 import qrcode
 import sqlite3
 from telethon import TelegramClient, events
+from telethon.errors import SessionPasswordNeededError
 
 # Your Telegram API configuration
 api_id = '27403509'  # Replace with your Telegram API ID
@@ -11,7 +12,7 @@ phone_number = '+917814581929'  # Your phone number associated with the account
 client = TelegramClient('session_name', api_id, api_hash)
 
 # Database setup (SQLite)
-conn = sqlite3.connect('transactions.db')
+conn = sqlite3.connect('transactions.db', check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -74,7 +75,6 @@ def assign_server_key(server, duration):
 # Event handlers
 @client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    user_id = event.sender_id
     await event.reply(
         f"Hello, {event.sender.first_name}!\n\nWelcome to the Server Key Payment Bot!\n"
         "Use the following commands to interact:\n\n"
@@ -101,8 +101,6 @@ async def process_buy(event):
     user_id = event.sender_id
     message = event.message.message.split()
 
-    print(f"Received /buy command from user {user_id}: {message}")  # Debug print
-    
     if len(message) != 3:
         await event.reply("Usage: /buy <server> <duration>")
         return
@@ -119,24 +117,22 @@ async def process_buy(event):
     transaction_id = generate_transaction_id()
     qr_path = generate_upi_qr(upi_id, amount, transaction_id)
     
-    # Save transaction to database
+    # Send QR code to user and then save the transaction to database
     try:
-        cursor.execute("INSERT INTO transactions VALUES (?, ?, ?, ?, ?, 0)", 
+        await client.send_file(user_id, qr_path, caption=(
+            f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
+            f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
+            f"💵 **Amount**: ₹{amount}\n"
+            f"📤 **Transaction ID**: {transaction_id}\n\n"
+            f"📌 Scan this QR code to complete your payment via UPI."
+        ))
+        
+        # Save transaction to database after sending QR code
+        cursor.execute("INSERT INTO transactions (transaction_id, user_id, server, duration, amount, verified) VALUES (?, ?, ?, ?, ?, 0)", 
                        (transaction_id, user_id, server, duration, amount))
         conn.commit()
-        print(f"Transaction saved: {transaction_id}")  # Debug print
     except sqlite3.Error as e:
         await event.reply(f"Database error: {str(e)}")
-        return
-
-    # Send QR code to user
-    await client.send_file(user_id, qr_path, caption=(
-        f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
-        f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
-        f"💵 **Amount**: ₹{amount}\n"
-        f"📤 **Transaction ID**: {transaction_id}\n\n"
-        f"📌 Scan this QR code to complete your payment via UPI."
-    ))
 
 @client.on(events.NewMessage(pattern='/verify (.+)'))
 async def verify(event):
@@ -163,9 +159,13 @@ async def verify(event):
 
 # Start the client
 async def main():
-    await client.start()
-    print("Bot is running...")
-    await client.run_until_disconnected()
+    try:
+        await client.start(phone=phone_number)
+        print("Bot is running...")
+        await client.run_until_disconnected()
+    except SessionPasswordNeededError:
+        await client.sign_in(password='YOUR_PASSWORD')  # Replace 'YOUR_PASSWORD' with your Telegram password
+        await main()
 
 # Run the client
 import asyncio
