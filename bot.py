@@ -2,11 +2,12 @@ import uuid
 import qrcode
 import sqlite3
 from telethon import TelegramClient, events
+import os
 
-# Your Telegram API configuration (use your Telegram account credentials)
-api_id = '27403509'
-api_hash = '30515311a8dbe44c670841615688cee4'
-phone_number = '+917814581929'  # This is your phone number associated with the account
+# Your Telegram API configuration (use environment variables for better security)
+api_id = os.getenv('27403509')
+api_hash = os.getenv('30515311a8dbe44c670841615688cee4')
+phone_number = os.getenv('+917814581929')  # Your phone number associated with the account
 
 client = TelegramClient('session_name', api_id, api_hash)
 
@@ -36,7 +37,7 @@ key_prices = {
         "7_Days": 450,
         "1_Month": 1000
     },
-    "not available_server": {
+    "not_available_server": {
         "1_month": 150,
         "3_months": 350,
         "6_months": 600
@@ -82,7 +83,7 @@ async def start(event):
         "Once you choose a server and duration, you'll receive a payment QR code."
     )
 
-@client.on(events.NewMessage(pattern='/buy'))
+@client.on(events.NewMessage(pattern=r'/buy$'))
 async def show_servers(event):
     # Show available servers and prices
     available_servers = "Here are the available servers and their prices:\n\n"
@@ -91,7 +92,8 @@ async def show_servers(event):
         for duration, price in durations.items():
             available_servers += f"  - {duration.replace('_', ' ').title()}: ₹{price}\n"
     
-    available_servers += "\nTo purchase a server, use the command `/buy <server> <duration>`."
+    available_servers += "\nTo purchase a server, use the command `/buy <server> <duration>`, for example:\n"
+    available_servers += "`/buy magic_server 1_Day` or `/buy not_available_server 3_months`."
     
     await event.reply(available_servers)
 
@@ -117,9 +119,13 @@ async def process_buy(event):
     qr_path = generate_upi_qr(upi_id, amount, transaction_id)
     
     # Save transaction to database
-    cursor.execute("INSERT INTO transactions VALUES (?, ?, ?, ?, ?, 0)", 
-                   (transaction_id, user_id, server, duration, amount))
-    conn.commit()
+    try:
+        cursor.execute("INSERT INTO transactions VALUES (?, ?, ?, ?, ?, 0)", 
+                       (transaction_id, user_id, server, duration, amount))
+        conn.commit()
+    except sqlite3.Error as e:
+        await event.reply(f"Database error: {str(e)}")
+        return
 
     # Send QR code to user
     await client.send_file(user_id, qr_path, caption=(
@@ -162,4 +168,3 @@ async def main():
 # Run the client
 import asyncio
 asyncio.run(main())
-    
