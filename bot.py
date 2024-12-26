@@ -98,7 +98,7 @@ async def show_servers(event):
 
 @client.on(events.NewMessage(pattern=r'/buy (\w+) (\w+)'))
 async def process_buy(event):
-    user_id = event.sender_id  # This correctly fetches the user's Telegram ID
+    user_id = event.sender_id  # Correctly fetches the user's Telegram ID
     message = event.message.message.split()
 
     if len(message) != 3:
@@ -119,7 +119,7 @@ async def process_buy(event):
     qr_path = generate_upi_qr(upi_id, amount, transaction_id)
     
     try:
-        # Send QR code to the user's chat directly (not saved messages)
+        # Send QR code to the user's chat directly (correct user_id is used here)
         await client.send_file(user_id, qr_path, caption=(
             f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
             f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
