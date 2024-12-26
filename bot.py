@@ -31,7 +31,7 @@ key_file = 'keys.txt'
 
 # Key prices (server and duration mapping to price)
 key_prices = {
-    "MAGIC SERVER": {
+    "MAGIC_SERVER": {
         "1_Day": 100,
         "7_Days": 450,
         "1_Month": 1000
