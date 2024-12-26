@@ -2,11 +2,6 @@ import uuid
 import qrcode
 import sqlite3
 from telethon import TelegramClient, events
-from telethon.errors import SessionPasswordNeededError, UserPrivacyRestrictedError
-import logging
-
-# Setup logging for debugging
-logging.basicConfig(level=logging.DEBUG)
 
 # Your Telegram API configuration
 api_id = '27403509'  # Replace with your Telegram API ID
@@ -16,7 +11,7 @@ phone_number = '+917814581929'  # Your phone number associated with the account
 client = TelegramClient('session_name', api_id, api_hash)
 
 # Database setup (SQLite)
-conn = sqlite3.connect('transactions.db', check_same_thread=False)
+conn = sqlite3.connect('transactions.db')
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -79,6 +74,7 @@ def assign_server_key(server, duration):
 # Event handlers
 @client.on(events.NewMessage(pattern='/start'))
 async def start(event):
+    user_id = event.sender_id
     await event.reply(
         f"Hello, {event.sender.first_name}!\n\nWelcome to the Server Key Payment Bot!\n"
         "Use the following commands to interact:\n\n"
@@ -102,9 +98,9 @@ async def show_servers(event):
 
 @client.on(events.NewMessage(pattern=r'/buy (\w+) (\w+)'))
 async def process_buy(event):
-    user_id = event.sender_id  # Correctly fetches the user's Telegram ID
+    user_id = event.sender_id
     message = event.message.message.split()
-
+    
     if len(message) != 3:
         await event.reply("Usage: /buy <server> <duration>")
         return
@@ -112,7 +108,6 @@ async def process_buy(event):
     server = message[1]
     duration = message[2]
 
-    # Check if server and duration are valid
     if server not in key_prices or duration not in key_prices[server]:
         await event.reply("Invalid server or duration. Please check and try again.")
         return
@@ -121,33 +116,24 @@ async def process_buy(event):
     upi_id = "kaalvivek@fam"  # Replace with your UPI ID
     transaction_id = generate_transaction_id()
     qr_path = generate_upi_qr(upi_id, amount, transaction_id)
-
+    
+    # Save transaction to database
     try:
-        # Get the user's input entity to ensure the bot can find them
-        user_entity = await client.get_input_entity(user_id)
-
-        # Send QR code to the user's chat directly
-        await client.send_file(user_entity, qr_path, caption=(
-            f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
-            f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
-            f"💵 **Amount**: ₹{amount}\n"
-            f"📤 **Transaction ID**: {transaction_id}\n\n"
-            f"📌 Scan this QR code to complete your payment via UPI."
-        ))
-
-        # Save transaction to the database after sending QR code
-        cursor.execute("INSERT INTO transactions (transaction_id, user_id, server, duration, amount, verified) VALUES (?, ?, ?, ?, ?, 0)", 
+        cursor.execute("INSERT INTO transactions VALUES (?, ?, ?, ?, ?, 0)", 
                        (transaction_id, user_id, server, duration, amount))
         conn.commit()
+    except sqlite3.Error as e:
+        await event.reply(f"Database error: {str(e)}")
+        return
 
-    except UserPrivacyRestrictedError:
-        await event.reply("Sorry, I can't send messages to this user due to their privacy settings.")
-    except Exception as e:
-        # Log the error for debugging purposes
-        logging.error(f"Error occurred during /buy command: {e}")
-        
-        # Reply to user with a generic error message
-        await event.reply("An unexpected error occurred while processing your request. Please try again later.")
+    # Send QR code to user
+    await client.send_file(user_id, qr_path, caption=(
+        f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
+        f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
+        f"💵 **Amount**: ₹{amount}\n"
+        f"📤 **Transaction ID**: {transaction_id}\n\n"
+        f"📌 Scan this QR code to complete your payment via UPI."
+    ))
 
 @client.on(events.NewMessage(pattern='/verify (.+)'))
 async def verify(event):
@@ -174,13 +160,9 @@ async def verify(event):
 
 # Start the client
 async def main():
-    try:
-        await client.start(phone=phone_number)
-        print("Bot is running...")
-        await client.run_until_disconnected()
-    except SessionPasswordNeededError:
-        await client.sign_in(password='YOUR_PASSWORD')  # Replace 'YOUR_PASSWORD' with your Telegram password
-        await main()
+    await client.start()
+    print("Bot is running...")
+    await client.run_until_disconnected()
 
 # Run the client
 import asyncio
