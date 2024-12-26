@@ -98,7 +98,7 @@ async def show_servers(event):
 
 @client.on(events.NewMessage(pattern=r'/buy (\w+) (\w+)'))
 async def process_buy(event):
-    user_id = event.sender_id
+    user_id = event.sender_id  # This correctly fetches the user's Telegram ID
     message = event.message.message.split()
 
     if len(message) != 3:
@@ -108,6 +108,7 @@ async def process_buy(event):
     server = message[1]
     duration = message[2]
 
+    # Check if server and duration are valid
     if server not in key_prices or duration not in key_prices[server]:
         await event.reply("Invalid server or duration. Please check and try again.")
         return
@@ -117,8 +118,8 @@ async def process_buy(event):
     transaction_id = generate_transaction_id()
     qr_path = generate_upi_qr(upi_id, amount, transaction_id)
     
-    # Send QR code to user and then save the transaction to database
     try:
+        # Send QR code to the user's chat directly (not saved messages)
         await client.send_file(user_id, qr_path, caption=(
             f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
             f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
@@ -126,13 +127,14 @@ async def process_buy(event):
             f"📤 **Transaction ID**: {transaction_id}\n\n"
             f"📌 Scan this QR code to complete your payment via UPI."
         ))
-        
-        # Save transaction to database after sending QR code
+
+        # Save transaction to the database after sending QR code
         cursor.execute("INSERT INTO transactions (transaction_id, user_id, server, duration, amount, verified) VALUES (?, ?, ?, ?, ?, 0)", 
                        (transaction_id, user_id, server, duration, amount))
         conn.commit()
-    except Exception as e:
-        await event.reply(f"Error occurred: {str(e)}")
+
+    except sqlite3.Error as e:
+        await event.reply(f"Database error: {str(e)}")
 
 @client.on(events.NewMessage(pattern='/verify (.+)'))
 async def verify(event):
