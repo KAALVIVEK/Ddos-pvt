@@ -31,10 +31,15 @@ key_file = 'keys.txt'
 
 # Key prices (server and duration mapping to price)
 key_prices = {
-    "example_server": {
+    "MAGIC SERVER": {
         "1_Day": 100,
         "7_Days": 450,
         "1_Month": 1000
+    },
+    "CURRENTLY NOT AVAILABLE": {
+        "1_month": 150,
+        "3_months": 350,
+        "6_months": 600
     }
 }
 
@@ -67,8 +72,33 @@ def assign_server_key(server, duration):
     return None  # No keys available
 
 # Event handlers
+@client.on(events.NewMessage(pattern='/start'))
+async def start(event):
+    user_id = event.sender_id
+    await event.reply(
+        f"Hello, {event.sender.first_name}!\n\nWelcome to the Server Key Payment Bot!\n"
+        "Use the following commands to interact:\n\n"
+        "/buy - To view available servers and their prices.\n"
+        "Once you choose a server and duration, you'll receive a payment QR code."
+    )
+
 @client.on(events.NewMessage(pattern='/buy'))
 async def buy(event):
+    user_id = event.sender_id
+    
+    # Show available servers and prices
+    available_servers = "Here are the available servers and their prices:\n\n"
+    for server, durations in key_prices.items():
+        available_servers += f"**{server.replace('_', ' ').title()}**:\n"
+        for duration, price in durations.items():
+            available_servers += f"  - {duration.replace('_', ' ').title()}: ₹{price}\n"
+    
+    available_servers += "\nTo purchase a server, use the command `/buy <server> <duration>`."
+    
+    await event.reply(available_servers)
+
+@client.on(events.NewMessage(pattern='/buy'))
+async def process_buy(event):
     user_id = event.sender_id
     message = event.message.message.split()  # Expecting "/buy <server> <duration>"
     
