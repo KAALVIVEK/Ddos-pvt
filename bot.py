@@ -31,12 +31,12 @@ key_file = 'keys.txt'
 
 # Key prices (server and duration mapping to price)
 key_prices = {
-    "MAGIC_SERVER": {
-        "1_Day": 100,
+    "magic_server": {
+        "1_Day": 150,
         "7_Days": 450,
         "1_Month": 1000
     },
-    "CURRENTLY NOT AVAILABLE": {
+    "another_server": {
         "1_month": 150,
         "3_months": 350,
         "6_months": 600
@@ -83,9 +83,7 @@ async def start(event):
     )
 
 @client.on(events.NewMessage(pattern='/buy'))
-async def buy(event):
-    user_id = event.sender_id
-    
+async def show_servers(event):
     # Show available servers and prices
     available_servers = "Here are the available servers and their prices:\n\n"
     for server, durations in key_prices.items():
@@ -97,10 +95,10 @@ async def buy(event):
     
     await event.reply(available_servers)
 
-@client.on(events.NewMessage(pattern='/buy'))
+@client.on(events.NewMessage(pattern='/buy (\w+) (\w+)'))
 async def process_buy(event):
     user_id = event.sender_id
-    message = event.message.message.split()  # Expecting "/buy <server> <duration>"
+    message = event.message.message.split()
     
     if len(message) != 3:
         await event.reply("Usage: /buy <server> <duration>")
@@ -125,8 +123,8 @@ async def process_buy(event):
 
     # Send QR code to user
     await client.send_file(user_id, qr_path, caption=(
-        f"🔑 **Server Selection**: {server}\n"
-        f"📅 **Duration**: {duration}\n"
+        f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
+        f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
         f"💵 **Amount**: ₹{amount}\n"
         f"📤 **Transaction ID**: {transaction_id}\n\n"
         f"📌 Scan this QR code to complete your payment via UPI."
