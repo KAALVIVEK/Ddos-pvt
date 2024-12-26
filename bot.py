@@ -100,6 +100,8 @@ async def show_servers(event):
 async def process_buy(event):
     user_id = event.sender_id
     message = event.message.message.split()
+
+    print(f"Received /buy command from user {user_id}: {message}")  # Debug print
     
     if len(message) != 3:
         await event.reply("Usage: /buy <server> <duration>")
@@ -122,6 +124,7 @@ async def process_buy(event):
         cursor.execute("INSERT INTO transactions VALUES (?, ?, ?, ?, ?, 0)", 
                        (transaction_id, user_id, server, duration, amount))
         conn.commit()
+        print(f"Transaction saved: {transaction_id}")  # Debug print
     except sqlite3.Error as e:
         await event.reply(f"Database error: {str(e)}")
         return
