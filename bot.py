@@ -1,121 +1,136 @@
-import time
+import uuid
 import qrcode
-import os
+import sqlite3
 from telethon import TelegramClient, events
-import re
 
-# UPI ID and Telegram API credentials
-UPI_ID = "kaalvivek@fam"
-api_id = "27403509"
-api_hash = "30515311a8dbe44c670841615688cee4"
+# Your Telegram API configuration (use your Telegram account credentials)
+api_id = '27403509'
+api_hash = '30515311a8dbe44c670841615688cee4'
+phone_number = '+917814581929'  # This is your phone number associated with the account
 
-# Price dictionary
-PRICES = {
-    "magic_server": {"1_day": 150, "7_days": 800, "1_month": 1800},
-    "brutal_server": {"1_day": 200},
+client = TelegramClient('session_name', api_id, api_hash)
+
+# Database setup (SQLite)
+conn = sqlite3.connect('transactions.db')
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS transactions (
+    transaction_id TEXT PRIMARY KEY,
+    user_id TEXT,
+    server TEXT,
+    duration TEXT,
+    amount REAL,
+    verified INTEGER DEFAULT 0
+)
+""")
+conn.commit()
+
+# File to store server keys
+key_file = 'keys.txt'
+
+# Key prices (server and duration mapping to price)
+key_prices = {
+    "example_server": {
+        "1_Day": 100,
+        "7_Days": 450,
+        "1_Month": 1000
+    }
 }
 
-# Initialize the Telegram Client
-client = TelegramClient('buy_keys_session', api_id, api_hash)
+# Helper functions
+def generate_transaction_id():
+    return str(uuid.uuid4())
 
-# Dictionary to store pending payments (chat_id -> transaction_id, amount)
-pending_payments = {}
+def generate_upi_qr(upi_id, amount, transaction_id):
+    upi_data = f"upi://pay?pa={upi_id}&pn=ServerPayment&am={amount}&cu=INR&tid={transaction_id}"
+    qr = qrcode.make(upi_data)
+    qr_path = f"qr_{transaction_id}.png"
+    qr.save(qr_path)
+    return qr_path
 
-# Function to generate a unique UPI QR code
-def generate_upi_qr(amount, transaction_id):
-    upi_string = f"upi://pay?pa={UPI_ID}&pn=YourName&am={amount}&cu=INR&tn=TransactionID_{transaction_id}"
-    qr = qrcode.QRCode(version=1, box_size=10, border=4)
-    qr.add_data(upi_string)
-    qr.make(fit=True)
-    img = qr.make_image(fill="black", back_color="white")
+def assign_server_key(server, duration):
+    with open(key_file, 'r') as f:
+        keys = f.readlines()
+    
+    for line in keys:
+        key_data = line.strip().split(" ", 1)
+        if len(key_data) == 2 and key_data[1] == duration:
+            key = key_data[0]
+            keys.remove(line)
+            
+            # Save updated keys back
+            with open(key_file, 'w') as f:
+                f.writelines(keys)
+            return key
+    
+    return None  # No keys available
 
-    # Save the QR code to a file
-    file_path = f"qr_{transaction_id}.png"
-    img.save(file_path)
-    return file_path, upi_string
+# Event handlers
+@client.on(events.NewMessage(pattern='/buy'))
+async def buy(event):
+    user_id = event.sender_id
+    message = event.message.message.split()  # Expecting "/buy <server> <duration>"
+    
+    if len(message) != 3:
+        await event.reply("Usage: /buy <server> <duration>")
+        return
+    
+    server = message[1]
+    duration = message[2]
 
-# Command to handle server selection and payment generation
-@client.on(events.NewMessage(pattern=r'/select (.+) (.+)'))
-async def select(event):
-    print(f"Received /select command from chat {event.chat_id}")  # Debug print
-    try:
-        # Parse user input
-        server, duration = event.pattern_match.groups()
-        
-        # Check if the server and duration exist in the price dictionary
-        if server not in PRICES or duration not in PRICES[server]:
-            await event.reply("❌ Invalid selection. Use `/buy` to see valid options.")
-            return
-        
-        # Get price for the selected server and duration
-        price = PRICES[server][duration]
-        transaction_id = int(time.time())  # Generate a unique transaction ID
-        
-        # Generate the UPI QR code
-        qr_path, upi_link = generate_upi_qr(price, transaction_id)
-
-        # Store the pending payment
-        pending_payments[event.chat_id] = {
-            "transaction_id": transaction_id, 
-            "amount": price, 
-            "server": server,
-            "duration": duration,
-            "qr_path": qr_path
-        }
-
-        # Send the QR code to the user
-        await event.reply(f"Please scan the QR code to pay ₹{price} for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()}). After payment, reply with your OTR number to verify.")
-        await client.send_file(event.chat_id, qr_path, caption=f"Pay ₹{price} for {server.replace('_', ' ').title()} - {duration.replace('_', ' ').title()}")
-
-        # Clean up by deleting the QR code image after sending it
-        os.remove(qr_path)
-
-    except KeyError:
-        await event.reply("❌ Invalid selection. Please use `/buy` to see valid options.")
-
-# Command to verify the payment
-@client.on(events.NewMessage(pattern=r'/verify (.+)'))
-async def verify_payment(event):
-    print(f"Received /verify command from chat {event.chat_id}")  # Debug print
-    otr_number = event.pattern_match.group(1)
-
-    # Check if the user has any pending payments
-    if event.chat_id not in pending_payments:
-        await event.reply("❌ No pending payments found. Please use `/select <server> <duration>` to make a payment first.")
+    if server not in key_prices or duration not in key_prices[server]:
+        await event.reply("Invalid server or duration. Please check and try again.")
         return
 
-    # Retrieve the pending payment details
-    payment_details = pending_payments[event.chat_id]
-    transaction_id = payment_details["transaction_id"]
-    amount = payment_details["amount"]
-    server = payment_details["server"]
-    duration = payment_details["duration"]
+    amount = key_prices[server][duration]
+    upi_id = "kaalvivek@fam"  # Replace with your UPI ID
+    transaction_id = generate_transaction_id()
+    qr_path = generate_upi_qr(upi_id, amount, transaction_id)
+    
+    # Save transaction to database
+    cursor.execute("INSERT INTO transactions VALUES (?, ?, ?, ?, ?, 0)", 
+                   (transaction_id, user_id, server, duration, amount))
+    conn.commit()
 
-    # Simulate verifying the OTR (this part can be automated using SMS scraping, email parsing, etc.)
-    if verify_transaction(otr_number, amount):
-        # Payment verified successfully
-        await event.reply(f"✅ Payment of ₹{amount} with OTR {otr_number} verified successfully! You have selected {server.replace('_', ' ').title()} for {duration.replace('_', ' ').title()}.")
-        await send_key(event.chat_id, server, duration)
-        del pending_payments[event.chat_id]  # Remove the pending payment
+    # Send QR code to user
+    await client.send_file(user_id, qr_path, caption=(
+        f"🔑 **Server Selection**: {server}\n"
+        f"📅 **Duration**: {duration}\n"
+        f"💵 **Amount**: ₹{amount}\n"
+        f"📤 **Transaction ID**: {transaction_id}\n\n"
+        f"📌 Scan this QR code to complete your payment via UPI."
+    ))
+
+@client.on(events.NewMessage(pattern='/verify (.+)'))
+async def verify(event):
+    otr_number = event.pattern_match.group(1)
+    cursor.execute("SELECT * FROM transactions WHERE transaction_id = ? AND verified = 0", (otr_number,))
+    transaction = cursor.fetchone()
+
+    if transaction:
+        user_id, server, duration, amount = transaction[1], transaction[2], transaction[3], transaction[4]
+        key = assign_server_key(server, duration)
+        
+        if key:
+            cursor.execute("UPDATE transactions SET verified = 1 WHERE transaction_id = ?", (otr_number,))
+            conn.commit()
+            await client.send_message(
+                user_id,
+                f"✅ Payment verified!\nHere is your server key:\n\n**{key}**"
+            )
+            await event.reply(f"✅ Payment verified for user {user_id}. Key sent!")
+        else:
+            await event.reply("❌ No keys available for the selected server and duration.")
     else:
-        await event.reply("❌ Payment verification failed. Please check the OTR and try again.")
+        await event.reply("❌ Invalid OTR or payment already verified.")
 
-# Simulated payment verification (this would be more complex in a real system)
-def verify_transaction(otr_number, amount):
-    # Simulated check: In real scenarios, this could involve matching the OTR and amount with data from your payment provider.
-    # For now, we assume the OTR matches the expected format, and the amount is correct.
-    expected_otr = f"TransactionID_{int(time.time()) - 1}"  # Simulated expected OTR based on a previous transaction ID
-    if otr_number == expected_otr and amount == 150:
-        return True
-    return False
+# Start the client
+async def main():
+    await client.start()
+    print("Bot is running...")
+    await client.run_until_disconnected()
 
-# Function to simulate sending a key after payment verification
-async def send_key(chat_id, server, duration):
-    # Simulate sending a key for the server
-    key = f"YourServerKey123456 for {server.replace('_', ' ').title()} ({duration.replace('_', ' ').title()})"
-    await client.send_message(chat_id, f"Here is your server key: {key}")
-
-# Start the Telegram client
-print("Bot is starting...")  # Debug print to check if bot is starting
-client.start()
-client.run_until_disconnected()
+# Run the client
+import asyncio
+asyncio.run(main())
