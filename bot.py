@@ -2,7 +2,11 @@ import uuid
 import qrcode
 import sqlite3
 from telethon import TelegramClient, events
-from telethon.errors import SessionPasswordNeededError
+from telethon.errors import SessionPasswordNeededError, UserPrivacyRestrictedError
+import logging
+
+# Setup logging for debugging
+logging.basicConfig(level=logging.DEBUG)
 
 # Your Telegram API configuration
 api_id = '27403509'  # Replace with your Telegram API ID
@@ -117,10 +121,13 @@ async def process_buy(event):
     upi_id = "kaalvivek@fam"  # Replace with your UPI ID
     transaction_id = generate_transaction_id()
     qr_path = generate_upi_qr(upi_id, amount, transaction_id)
-    
+
     try:
-        # Send QR code to the user's chat directly (correct user_id is used here)
-        await client.send_file(user_id, qr_path, caption=(
+        # Get the user's input entity to ensure the bot can find them
+        user_entity = await client.get_input_entity(user_id)
+
+        # Send QR code to the user's chat directly
+        await client.send_file(user_entity, qr_path, caption=(
             f"🔑 **Server Selection**: {server.replace('_', ' ').title()}\n"
             f"📅 **Duration**: {duration.replace('_', ' ').title()}\n"
             f"💵 **Amount**: ₹{amount}\n"
@@ -133,8 +140,14 @@ async def process_buy(event):
                        (transaction_id, user_id, server, duration, amount))
         conn.commit()
 
-    except sqlite3.Error as e:
-        await event.reply(f"Database error: {str(e)}")
+    except UserPrivacyRestrictedError:
+        await event.reply("Sorry, I can't send messages to this user due to their privacy settings.")
+    except Exception as e:
+        # Log the error for debugging purposes
+        logging.error(f"Error occurred during /buy command: {e}")
+        
+        # Reply to user with a generic error message
+        await event.reply("An unexpected error occurred while processing your request. Please try again later.")
 
 @client.on(events.NewMessage(pattern='/verify (.+)'))
 async def verify(event):
