@@ -131,8 +131,8 @@ async def process_buy(event):
         cursor.execute("INSERT INTO transactions (transaction_id, user_id, server, duration, amount, verified) VALUES (?, ?, ?, ?, ?, 0)", 
                        (transaction_id, user_id, server, duration, amount))
         conn.commit()
-    except sqlite3.Error as e:
-        await event.reply(f"Database error: {str(e)}")
+    except Exception as e:
+        await event.reply(f"Error occurred: {str(e)}")
 
 @client.on(events.NewMessage(pattern='/verify (.+)'))
 async def verify(event):
