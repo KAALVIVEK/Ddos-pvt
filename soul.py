@@ -11,7 +11,7 @@ import certifi
 # Configuration
 TOKEN = '7942937704:AAFM6qI8dd74bEuSu-E0UUqN0N9FioD4qa8'
 ADMIN_USER_ID = 7083378335  # Replace with your admin user ID
-MONGO_URI = 'mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority'
+MONGO_URI = 'mongodb+srv://sharp:sharp@sharpx.x82gx.mongodb.net/?retryWrites=true&w=majority&appName=SharpX'
 
 USERNAME = "@TREXVIVEK"  # Your bot username
 COMMAND_LIMIT = 10  # Max commands per user per hour
