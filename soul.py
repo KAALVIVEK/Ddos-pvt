@@ -1,200 +1,146 @@
 import os
 import telebot
-import asyncio
 import logging
+import asyncio
 from pymongo import MongoClient
 from datetime import datetime, timedelta
-import certifi
-import random
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from threading import Thread
+import certifi
 
 # Configuration
 TOKEN = '7942937704:AAFM6qI8dd74bEuSu-E0UUqN0N9FioD4qa8'
-ADMIN_USER_ID = 7083378335
-MONGO_URI = 'mongodb+srv://sharp:sharp@sharpx.x82gx.mongodb.net/?retryWrites=true&w=majority&appName=SharpX'
-USERNAME = "@TREXVIVEK"
+ADMIN_USER_ID = 7083378335  # Replace with your admin user ID
+MONGO_URI = 'mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority'
 
-# Attack Status
-attack_in_progress = False
+USERNAME = "@TREXVIVEK"  # Your bot username
+COMMAND_LIMIT = 10  # Max commands per user per hour
+loop = asyncio.get_event_loop()
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
-# Logging Setup
-logging.basicConfig(format='%(asctime)s - ⚔️ %(message)s', level=logging.INFO)
-
-# MongoDB Connection
+# MongoDB setup
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-db = client['sharp']
+db = client['your_database']
 users_collection = db.users
 
-# Bot Initialization
+# Initialize bot
 bot = telebot.TeleBot(TOKEN)
-loop = asyncio.get_event_loop()
+user_command_counts = {}
 
-# Blocked Ports
-blocked_ports = [8700, 20000, 443, 17500, 9031, 20002, 20001]
+# Asyncio loop
+async def start_asyncio_loop():
+    while True:
+        await asyncio.sleep(1)
 
-# Function to Simulate Attack
-def simulate_attack(target_ip, target_port, duration):
-    global attack_in_progress
-    logging.info(f"Attack initiated on {target_ip}:{target_port} for {duration} seconds.")
-    # Simulated delay to represent attack execution
-    time.sleep(duration)
-    attack_in_progress = False
-    notify_attack_finished(target_ip, target_port, duration)
-
-# Notify on Attack Completion
-def notify_attack_finished(target_ip, target_port, duration):
-    bot.send_message(
-        ADMIN_USER_ID,
-        f"""
-🔥 *MISSION ACCOMPLISHED!* 🔥
-━━━━━━━━━━━━━━━━━━━━━━━
-🎯 *Target Neutralized:* `{target_ip}`
-💣 *Port Breached:* `{target_port}`
-⏳ *Duration:* `{duration} seconds`
-
-🔒 *Mission Complete. No Evidence Left Behind.*
-        """,
-        parse_mode='Markdown'
-    )
-
-# Process Attack Command
-def process_attack_command(message):
-    global attack_in_progress
-    try:
-        args = message.text.split()
-        if len(args) != 3:
-            bot.send_message(
-                message.chat.id,
-                "⚠️ *Invalid format.*\nUse: `<IP> <Port> <Duration>`\n\nExample: `192.168.1.1 8080 60`",
-                parse_mode='Markdown'
-            )
-            return
-
-        target_ip, target_port, duration = args[0], int(args[1]), int(args[2])
-        user_id = message.from_user.id
-        username = message.from_user.username or "Unknown Agent"
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Check for blocked ports
-        if target_port in blocked_ports:
-            bot.send_message(
-                message.chat.id,
-                f"🚫 *Port {target_port} is restricted.*\nPlease select a different target.",
-                parse_mode='Markdown'
-            )
-            return
-
-        attack_in_progress = True
-
-        # Start attack simulation
-        loop.run_in_executor(None, simulate_attack, target_ip, target_port, duration)
-
-        bot.send_message(
-            message.chat.id,
-            f"""
-🚀 *⚠️ OPERATION INITIATED!* 🚀
-━━━━━━━━━━━━━━━━━━━━━━━
-🎯 *Target IP:* `{target_ip}`
-🔒 *Port Accessed:* `{target_port}`
-⏳ *Duration:* `{duration} seconds`
-
-🕵️‍♂️ *Agent ID:* `{username}`
-📌 *User ID:* `{user_id}`
-📅 *Timestamp:* `{timestamp}`
-
-🔥 *MISSION STATUS:* UNLEASHED
-━━━━━━━━━━━━━━━━━━━━━━━
-⚡ *"Operation Thunderstorm is LIVE. Let the storm begin!"*
-            """,
-            parse_mode='Markdown'
-        )
-
-    except Exception as e:
-        bot.send_message(message.chat.id, f"❌ *Error:* {e}", parse_mode='Markdown')
-        logging.error(e)
-
-# Command Handlers
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
-    options = [
-        "💀 Initiate Attack 🔥", 
-        "🔍 Status Report", 
-        "📜 Mission Brief", 
-        "📞 Contact HQ"
-    ]
-    buttons = [KeyboardButton(option) for option in options]
-    markup.add(*buttons)
-
-    bot.send_message(
-        message.chat.id,
-        f"👊 *Welcome to Command, Agent. Choose your directive.* Managed by {USERNAME}",
-        reply_markup=markup,
-        parse_mode='Markdown'
-    )
-
-@bot.message_handler(commands=['Attack'])
-def attack_command(message):
-    global attack_in_progress
-    chat_id = message.chat.id
-
-    if attack_in_progress:
-        bot.send_message(
-            chat_id,
-            f"⚠️ *An attack is already in progress. Please wait until it completes, {USERNAME}.*",
-            parse_mode='Markdown'
-        )
-        return
-
-    user_id = message.from_user.id
-    user_data = users_collection.find_one({"user_id": user_id})
-
-    if not user_data or user_data.get('plan') == 0:
-        bot.send_message(chat_id, f"🚫 Unauthorized. Access limited to {USERNAME}.")
-        return
-
-    bot.send_message(
-        chat_id,
-        f"📝 Provide target details – IP, Port, Duration (seconds). Controlled by {USERNAME}",
-        parse_mode='Markdown'
-    )
-    bot.register_next_step_handler(message, process_attack_command)
-
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    if message.text == "💀 Initiate Attack 🔥":
-        bot.reply_to(message, f"*Command received. Preparing deployment. Stand by, {USERNAME}*", parse_mode='Markdown')
-        attack_command(message)
-    elif message.text == "🔍 Status Report":
-        user_id = message.from_user.id
-        user_data = users_collection.find_one({"user_id": user_id})
-        if user_data:
-            username = message.from_user.username
-            plan, valid_until = user_data.get('plan', 'N/A'), user_data.get('valid_until', 'N/A')
-            response = (f"*Agent ID: {username}\n"
-                        f"Plan Level: {plan}\n"
-                        f"Authorized Until: {valid_until}\n"
-                        f"Timestamp: {datetime.now().isoformat()}.*")
-        else:
-            response = f"*Profile unknown. Contact {USERNAME} for authorization.*"
-        bot.reply_to(message, response, parse_mode='Markdown')
-    elif message.text == "📜 Mission Brief":
-        bot.reply_to(message, f"*For support, type /help or contact {USERNAME} at HQ.*", parse_mode='Markdown')
-    elif message.text == "📞 Contact HQ":
-        bot.reply_to(message, f"*Direct Line to HQ: {USERNAME}*", parse_mode='Markdown')
-    else:
-        bot.reply_to(message, f"❗*Unknown command. Focus, Agent. Managed by {USERNAME}*", parse_mode='Markdown')
-
-# Asyncio Loop Thread
+# Asyncio thread
 def start_asyncio_thread():
     asyncio.set_event_loop(loop)
-    loop.run_forever()
+    loop.run_until_complete(start_asyncio_loop())
+
+# --- Utility Functions ---
+def is_admin(user_id):
+    return user_id == ADMIN_USER_ID
+
+def update_user_access(user_id, plan, days):
+    valid_until = (datetime.now() + timedelta(days=days)).isoformat()
+    users_collection.update_one(
+        {"user_id": user_id},
+        {"$set": {"plan": plan, "valid_until": valid_until, "access_count": 0}},
+        upsert=True
+    )
+
+def check_user_limit(plan):
+    plan_limit = {1: 99, 2: 499}  # Example limits for different plans
+    return users_collection.count_documents({"plan": plan}) < plan_limit.get(plan, 0)
+
+# --- Commands ---
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("💀 Initiate Attack 🔥", callback_data="initiate_attack"),
+        InlineKeyboardButton("🔍 Status Report", callback_data="status_report"),
+        InlineKeyboardButton("📜 Mission Brief", callback_data="mission_brief"),
+        InlineKeyboardButton("📞 Contact HQ", callback_data="contact_hq")
+    )
+    bot.send_message(
+        message.chat.id,
+        f"👋 Welcome, Agent! Choose your directive below. Managed by {USERNAME}",
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(commands=['approve'])
+def approve_user(message):
+    if not is_admin(message.from_user.id):
+        bot.send_message(message.chat.id, "🚫 You do not have permission to use this command.")
+        return
+
+    args = message.text.split()
+    if len(args) < 4:
+        bot.send_message(
+            message.chat.id,
+            "📝 Format: /approve <user_id> <plan> <days>\nExample: /approve 123456789 1 30"
+        )
+        return
+
+    try:
+        target_user_id = int(args[1])
+        plan = int(args[2])
+        days = int(args[3])
+
+        if not check_user_limit(plan):
+            bot.send_message(message.chat.id, f"⚠️ Plan {plan} is full. Contact {USERNAME}.")
+            return
+
+        update_user_access(target_user_id, plan, days)
+        bot.send_message(
+            message.chat.id,
+            f"✅ User {target_user_id} approved for Plan {plan} for {days} days."
+        )
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ Error: {e}")
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_query(call):
+    if call.data == "initiate_attack":
+        bot.send_message(call.message.chat.id, "⚡ Preparing to initiate an attack. Provide details.")
+    elif call.data == "status_report":
+        user_data = users_collection.find_one({"user_id": call.message.chat.id})
+        if user_data:
+            response = (f"📊 *Status Report*\n"
+                        f"👤 User ID: `{call.message.chat.id}`\n"
+                        f"💳 Plan: `{user_data['plan']}`\n"
+                        f"📅 Valid Until: `{user_data['valid_until']}`\n")
+        else:
+            response = "🚫 No status found. Contact HQ for assistance."
+        bot.send_message(call.message.chat.id, response, parse_mode="Markdown")
+    elif call.data == "mission_brief":
+        bot.send_message(call.message.chat.id, "📜 Your mission briefing: Stay vigilant.")
+    elif call.data == "contact_hq":
+        bot.send_message(call.message.chat.id, f"📞 Contact HQ: {USERNAME}")
+
+@bot.message_handler(commands=['stats'])
+def user_stats(message):
+    user_id = message.from_user.id
+    user_data = users_collection.find_one({"user_id": user_id})
+    if user_data:
+        response = (f"📊 *User Statistics*\n"
+                    f"👤 User ID: `{user_id}`\n"
+                    f"💳 Plan: `{user_data['plan']}`\n"
+                    f"🔢 Commands Used: `{user_data.get('access_count', 0)}`\n"
+                    f"📅 Valid Until: `{user_data['valid_until']}`")
+    else:
+        response = "🚫 No statistics available for your account."
+    bot.send_message(message.chat.id, response, parse_mode="Markdown")
+
+# --- Main ---
 
 if __name__ == "__main__":
-    asyncio_thread = Thread(target=start_asyncio_thread, daemon=True)
-    asyncio_thread.start()
-    logging.info("🚀 Bot is operational and mission-ready.")
+    thread = Thread(target=start_asyncio_thread, daemon=True)
+    thread.start()
+    logging.info("🚀 Bot is operational.")
 
     while True:
         try:
