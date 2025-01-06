@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.filters import Command, CallbackQueryFilter
+from aiogram.filters import Command
 from pymongo import MongoClient
 import certifi
 import asyncio
