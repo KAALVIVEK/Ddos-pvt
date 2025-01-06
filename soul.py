@@ -115,12 +115,27 @@ async def initiate_attack(callback_query: types.CallbackQuery):
             f"❌ *You are not authorized to initiate an attack.*\n"
             f"💡 *Contact HQ at {USERNAME} for support and access approval.*"
         )
-        logger.warning(f"Unauthorized attack attempt by user {user_id}.")
-        await log_to_channel(f"🚨 *Unauthorized attack attempt by user {user_id}.*")
+        await log_to_channel(f"🚨 Unauthorized attack attempt by user {user_id}.")
         await bot.answer_callback_query(callback_query.id)
         await bot.send_message(callback_query.from_user.id, response, parse_mode="Markdown")
         return
 
+    # Check for cooldown
+    last_attack_time = user_data.get("last_attack_time")
+    if last_attack_time:
+        last_attack_time = datetime.fromisoformat(last_attack_time)
+        time_diff = datetime.now() - last_attack_time
+        if time_diff < timedelta(minutes=3):
+            remaining_time = timedelta(minutes=3) - time_diff
+            response = (
+                f"⏳ *Cooldown Active!*\n\n"
+                f"🚫 *You must wait for {remaining_time.seconds // 60} minutes and {remaining_time.seconds % 60} seconds before initiating another attack.*"
+            )
+            await bot.answer_callback_query(callback_query.id)
+            await bot.send_message(callback_query.from_user.id, response, parse_mode="Markdown")
+            return
+
+    # Proceed with attack preparation
     response = (
         f"⚔️ *Mission Briefing*\n\n"
         f"💥 *Prepare to execute your operation!*\n"
@@ -130,8 +145,6 @@ async def initiate_attack(callback_query: types.CallbackQuery):
         f"⚡ *Stay focused, Agent. HQ is monitoring your progress.*"
     )
 
-    logger.info(f"User {user_id} initiated an attack command.")
-    await log_to_channel(f"⚡ *User {user_id} initiated attack preparation.*")
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, response, parse_mode="Markdown")
 
@@ -148,15 +161,35 @@ async def handle_attack_details(message: types.Message):
             f"🔒 *You do not have the necessary clearance to execute this command.*\n"
             f"📞 *Contact HQ at {USERNAME} to upgrade your access.*"
         )
-        logger.warning(f"Unauthorized user {user_id} tried to send attack details: {message.text}")
-        await log_to_channel(f"🚨 *Unauthorized user {user_id} attempted to send attack details:* `{message.text}`")
+        await log_to_channel(f"🚨 Unauthorized user {user_id} tried to send attack details: {message.text}")
         await message.reply(response, parse_mode="Markdown")
         return
 
+    # Check for cooldown
+    last_attack_time = user_data.get("last_attack_time")
+    if last_attack_time:
+        last_attack_time = datetime.fromisoformat(last_attack_time)
+        time_diff = datetime.now() - last_attack_time
+        if time_diff < timedelta(minutes=3):
+            remaining_time = timedelta(minutes=3) - time_diff
+            response = (
+                f"⏳ *Cooldown Active!*\n\n"
+                f"🚫 *You must wait for {remaining_time.seconds // 60} minutes and {remaining_time.seconds % 60} seconds before initiating another attack.*"
+            )
+            await message.reply(response, parse_mode="Markdown")
+            return
+
+    # Process attack details
     try:
         ip, port, duration = message.text.split()
         port = int(port)
         duration = int(duration)
+
+        # Update the user's last attack time
+        users_collection.update_one(
+            {"user_id": user_id},
+            {"$set": {"last_attack_time": datetime.now().isoformat()}}
+        )
 
         response = (
             f"✅ *Attack Command Received!*\n\n"
@@ -166,7 +199,6 @@ async def handle_attack_details(message: types.Message):
             f"🔸 *Duration:* `{duration} seconds`\n\n"
             f"📌 *Your request has been logged and forwarded to HQ for further processing.*"
         )
-
         log_message = (
             f"🚀 *Attack Command Logged:*\n"
             f"👤 *User ID:* {user_id}\n"
@@ -175,7 +207,6 @@ async def handle_attack_details(message: types.Message):
             f"⏱ *Duration:* {duration} seconds\n"
             f"📅 *Timestamp:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
-        logger.info(log_message)
         await log_to_channel(log_message)
         await message.reply(response, parse_mode="Markdown")
     except ValueError:
@@ -185,15 +216,10 @@ async def handle_attack_details(message: types.Message):
             f"📌 *Example:* `192.168.1.1 80 60`\n\n"
             f"💡 *Ensure all parameters are correct before retrying.*"
         )
-        logger.error(f"Invalid attack command format from user {user_id}: {message.text}")
-        await log_to_channel(
-            f"⚠️ *Invalid attack command format from user {user_id}:* `{message.text}`"
-        )
         await message.reply(response, parse_mode="Markdown")
 
 
-# Main Entry Point
+# Run the Bot
 if __name__ == "__main__":
-    logger.info("🚀 Bot is now operational!")
     executor.start_polling(dp, skip_updates=True)
     
