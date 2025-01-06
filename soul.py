@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.filters import Command, Text
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command, CallbackQueryFilter
 from pymongo import MongoClient
 import certifi
 import asyncio
@@ -10,7 +10,7 @@ import asyncio
 # Bot Configurations
 BOT_TOKEN = "7942937704:AAFM6qI8dd74bEuSu-E0UUqN0N9FioD4qa8"  # Replace with your bot token
 ADMIN_USER_ID = 7083378335  # Replace with your Telegram user ID
-LOG_CHANNEL_LINK = "https://t.me/vivekpvtddos01"  # Replace with your log channel link
+LOG_CHANNEL_ID = -1002493017102  # Replace with your log channel ID
 MONGO_URI = "mongodb+srv://sharp:sharp@sharpx.x82gx.mongodb.net/?retryWrites=true&w=majority&appName=SharpX"  # Replace with your MongoDB connection URI
 
 # Initialize Bot and Dispatcher
@@ -18,7 +18,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 # Logging setup
-logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # MongoDB Connection
@@ -29,16 +29,15 @@ users_collection = db.users
 # Constants
 USERNAME = "@TREXVIVEK"  # Replace with your bot username
 
-
 # Helper Functions
-def get_user_info(user_id):
+def get_user_info(user_id: int):
     """Fetch user information from the database."""
     return users_collection.find_one({"user_id": user_id})
 
 
-def update_user_access(user_id, plan, days):
+def update_user_access(user_id: int, plan: str, days: int):
     """Update user plan and validity."""
-    valid_until = (datetime.now() + timedelta(days=days)).date().isoformat()
+    valid_until = (datetime.now() + timedelta(days=days)).isoformat()
     users_collection.update_one(
         {"user_id": user_id},
         {"$set": {"plan": plan, "valid_until": valid_until, "access_count": 0}},
@@ -46,12 +45,12 @@ def update_user_access(user_id, plan, days):
     )
 
 
-async def log_to_channel(log_message):
+async def log_to_channel(message: str):
     """Send logs to the specified Telegram channel."""
-    await bot.send_message(chat_id=LOG_CHANNEL_LINK, text=log_message, parse_mode="Markdown")
+    await bot.send_message(LOG_CHANNEL_ID, message, parse_mode="Markdown")
 
 
-# Commands and Callbacks
+# Command Handlers
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message):
     """Handle the /start command."""
@@ -78,7 +77,7 @@ async def send_welcome(message: types.Message):
     await message.answer(response, reply_markup=keyboard, parse_mode="Markdown")
 
 
-@dp.callback_query(Text("status_report"))
+@dp.callback_query(F.data == "status_report")
 async def status_report(callback_query: types.CallbackQuery):
     """Provide the user's status report."""
     user_id = callback_query.from_user.id
@@ -106,7 +105,7 @@ async def status_report(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-@dp.callback_query(Text("initiate_attack"))
+@dp.callback_query(F.data == "initiate_attack")
 async def initiate_attack(callback_query: types.CallbackQuery):
     """Handle attack initiation."""
     user_id = callback_query.from_user.id
@@ -132,7 +131,8 @@ async def initiate_attack(callback_query: types.CallbackQuery):
             remaining_time = timedelta(minutes=3) - time_diff
             response = (
                 f"⏳ *Cooldown Active!*\n\n"
-                f"🚫 *You must wait for {remaining_time.seconds // 60} minutes and {remaining_time.seconds % 60} seconds before initiating another attack.*"
+                f"🚫 *You must wait for {remaining_time.seconds // 60} minutes "
+                f"and {remaining_time.seconds % 60} seconds before initiating another attack.*"
             )
             await callback_query.message.answer(response, parse_mode="Markdown")
             await callback_query.answer()
@@ -147,17 +147,61 @@ async def initiate_attack(callback_query: types.CallbackQuery):
         f"⚡ *Stay focused, Agent. HQ is monitoring your progress.*"
     )
 
+    users_collection.update_one(
+        {"user_id": user_id}, {"$set": {"last_attack_time": datetime.now().isoformat()}}
+    )
+
     await callback_query.message.answer(response, parse_mode="Markdown")
     await callback_query.answer()
 
 
-# Run the Bot
+@dp.message()
+async def handle_attack_details(message: types.Message):
+    """Handle attack details provided by the user."""
+    user_id = message.from_user.id
+    user_data = get_user_info(user_id)
+
+    if not user_data or user_data.get("plan", 0) == 0:
+        response = (
+            f"🚫 *Unauthorized Operation!*\n\n"
+            f"🔒 *You do not have the necessary clearance to execute this command.*\n"
+            f"📞 *Contact HQ at {USERNAME} to upgrade your access.*"
+        )
+        await message.reply(response, parse_mode="Markdown")
+        return
+
+    try:
+        ip, port, duration = message.text.split()
+        port = int(port)
+        duration = int(duration)
+
+        response = (
+            f"✅ *Attack Command Received!*\n\n"
+            f"🌐 *Target Details:*\n"
+            f"🔸 *IP Address:* `{ip}`\n"
+            f"🔸 *Port:* `{port}`\n"
+            f"🔸 *Duration:* `{duration} seconds`\n\n"
+            f"📌 *Your request has been logged and forwarded to HQ for further processing.*"
+        )
+
+        await message.reply(response, parse_mode="Markdown")
+    except ValueError:
+        response = (
+            f"❌ *Invalid Command Format!*\n\n"
+            f"📝 *Please provide the details in this format:* `IP PORT DURATION`\n"
+            f"📌 *Example:* `192.168.1.1 80 60`\n\n"
+            f"💡 *Ensure all parameters are correct before retrying.*"
+        )
+        await message.reply(response, parse_mode="Markdown")
+
+
+# Main Function
 async def main():
     logger.info("🚀 Bot is starting...")
     await bot.delete_webhook(drop_pending_updates=True)
-    dp.include_router(dp)  # Add all handlers
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
