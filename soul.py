@@ -6,7 +6,7 @@ import time
 bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw')
 
 # Admin user IDs
-admin_ids = {"123456789", "7083378335"}  # Example IDs
+admin_ids = {"123456789", "7083378335"}  # Replace with actual admin IDs
 
 # Track ongoing attack state
 attack_running = False
@@ -25,12 +25,16 @@ def read_users():
             current_time = int(time.time())  # Get the current timestamp
             users = file.read().splitlines()
 
-            # Filter out expired users
+            # Filter out expired users and handle invalid lines
             valid_users = []
             for user in users:
-                user_id, expiration = user.split(":")
-                if int(expiration) > current_time:  # If the user hasn't expired
-                    valid_users.append(user_id)
+                try:
+                    user_id, expiration = user.split(":")
+                    if int(expiration) > current_time:  # If the user hasn't expired
+                        valid_users.append(user_id)
+                except ValueError:
+                    # Skip lines that don't have the correct format
+                    continue
 
             allowed_users = valid_users  # Update the global variable
             return valid_users
@@ -97,13 +101,22 @@ def approve_user(message):
     user_id = str(message.chat.id)
     if user_id in admin_ids:
         try:
-            # Get the user ID and duration (in seconds)
+            # Get the user ID and duration unit (days/weeks/months)
             command_args = message.text.split()
             target_user = command_args[1]
-            duration = int(command_args[2])  # Duration in seconds
+            duration = int(command_args[2])  # Duration number
+            unit = command_args[3].lower()  # Duration unit (days/weeks/months)
 
-            # Get the current time and calculate the expiration time
-            expiration_time = int(time.time()) + duration
+            # Calculate the duration in seconds
+            if unit == "days":
+                expiration_time = int(time.time()) + (duration * 86400)  # 1 day = 86400 seconds
+            elif unit == "weeks":
+                expiration_time = int(time.time()) + (duration * 604800)  # 1 week = 604800 seconds
+            elif unit == "months":
+                expiration_time = int(time.time()) + (duration * 2592000)  # 1 month = 2592000 seconds
+            else:
+                bot.reply_to(message, "Invalid time unit. Use 'days', 'weeks', or 'months'.")
+                return
 
             # Add the user to the file with expiration time
             with open(USER_FILE, "a") as file:
@@ -113,9 +126,9 @@ def approve_user(message):
             global allowed_users
             allowed_users = read_users()
 
-            bot.reply_to(message, f"User {target_user} has been approved until {time.ctime(expiration_time)}.")
+            bot.reply_to(message, f"User {target_user} has been approved for {duration} {unit} until {time.ctime(expiration_time)}.")
         except IndexError:
-            bot.reply_to(message, "Usage: /approve <user_id> <duration_in_seconds>")
+            bot.reply_to(message, "Usage: /approve <user_id> <duration> <unit (days/weeks/months)>")
     else:
         bot.reply_to(message, "You do not have permission to approve users.")
 
@@ -162,7 +175,7 @@ def handle_help(message):
 Available Commands:
 /chodo <target> <port> <duration> - Start attack.
 /myinfo - Show your information.
-/approve <user_id> <duration> - Approve a user for a specific duration.
+/approve <user_id> <duration> <unit (days/weeks/months)> - Approve a user for a specific duration.
 /remove <user_id> - Remove a user from the allowed list.
 /help - Display this help message.
 '''
