@@ -14,8 +14,12 @@ attack_running = False
 # Allowed users file
 USER_FILE = "users.txt"
 
+# Global variable for allowed users
+allowed_users = []
+
 # Read allowed user IDs from file
 def read_users():
+    global allowed_users  # Declare global before modifying
     try:
         with open(USER_FILE, "r") as file:
             current_time = int(time.time())  # Get the current timestamp
@@ -28,11 +32,12 @@ def read_users():
                 if int(expiration) > current_time:  # If the user hasn't expired
                     valid_users.append(user_id)
 
+            allowed_users = valid_users  # Update the global variable
             return valid_users
     except FileNotFoundError:
         return []
 
-allowed_users = read_users()
+allowed_users = read_users()  # Initialize the allowed_users list
 
 # Handle `/chodo` command
 @bot.message_handler(commands=['chodo'])
@@ -122,9 +127,6 @@ def remove_user(message):
         try:
             # Get the user ID to remove
             target_user = message.text.split()[1]
-            allowed_users = read_users()
-            
-            # Remove user from allowed_users and update the file
             with open(USER_FILE, "r") as file:
                 lines = file.readlines()
             with open(USER_FILE, "w") as file:
@@ -135,7 +137,7 @@ def remove_user(message):
             # Reload allowed_users
             global allowed_users
             allowed_users = read_users()
-            
+
             bot.reply_to(message, f"User {target_user} has been removed.")
         except IndexError:
             bot.reply_to(message, "Usage: /remove <user_id>")
