@@ -9,7 +9,7 @@ keep_alive()
 bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw')
 
 # Admin user IDs
-admin_ids = {"7083378335", "123456789"}  # Example IDs
+admin_ids = {"123456789", "7083378335"}  # Example IDs
 
 # Track ongoing attack state
 attack_running = False
@@ -97,9 +97,49 @@ def handle_help(message):
 Available Commands:
 /chodo <target> <port> <duration> - Start attack.
 /myinfo - Show your information.
+/approve <user_id> - Approve a user to use the bot.
+/remove <user_id> - Remove a user from the allowed list.
 /help - Display this help message.
 '''
     bot.reply_to(message, help_message)
+
+# Handle `/approve` command (admin-only)
+@bot.message_handler(commands=['approve'])
+def approve_user(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_ids:
+        try:
+            # Get the user ID to approve
+            target_user = message.text.split()[1]
+            with open(USER_FILE, "a") as file:
+                file.write(target_user + "\n")
+            bot.reply_to(message, f"User {target_user} has been approved.")
+        except IndexError:
+            bot.reply_to(message, "Usage: /approve <user_id>")
+    else:
+        bot.reply_to(message, "You do not have permission to approve users.")
+
+# Handle `/remove` command (admin-only)
+@bot.message_handler(commands=['remove'])
+def remove_user(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_ids:
+        try:
+            # Get the user ID to remove
+            target_user = message.text.split()[1]
+            allowed_users = read_users()
+            
+            if target_user in allowed_users:
+                allowed_users.remove(target_user)
+                with open(USER_FILE, "w") as file:
+                    file.write("\n".join(allowed_users) + "\n")
+                bot.reply_to(message, f"User {target_user} has been removed.")
+            else:
+                bot.reply_to(message, f"User {target_user} is not in the approved list.")
+        except IndexError:
+            bot.reply_to(message, "Usage: /remove <user_id>")
+    else:
+        bot.reply_to(message, "You do not have permission to remove users.")
 
 # Default handler for unknown commands
 @bot.message_handler(func=lambda message: True)
@@ -113,3 +153,4 @@ if __name__ == '__main__':
             bot.polling(none_stop=True)
         except Exception as e:
             print(f"Error: {e}")
+            
