@@ -148,7 +148,7 @@ def add_user(message):
         else:
             response = "Please specify a user ID and the duration (e.g., 1hour, 2days, 3weeks, 4months) to add ."
     else:
-        response = "Mood ni hai abhi pelhe purchase kar isse:- @SomsPvtt."
+        response = "Mood ni hai abhi pelhe purchase kar isse:- @TREXVIVEK."
 
     bot.reply_to(message , response)
 
@@ -184,7 +184,7 @@ def remove_user(message):
             response = '''Please Specify A User ID to Remove. 
  Usage: /remove <userid>'''
     else:
-        response = "Purchase karle bsdk:- @SomsPvtt ."
+        response = "Purchase karle bsdk:- @TREXVIVEK ."
 
     bot.reply_to(message, response)
     
