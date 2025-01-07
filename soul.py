@@ -1,9 +1,6 @@
 import telebot
 import subprocess
-import os
-from keep_alive import keep_alive
-
-keep_alive()
+import time
 
 # Replace with your bot token
 bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw')
@@ -21,7 +18,17 @@ USER_FILE = "users.txt"
 def read_users():
     try:
         with open(USER_FILE, "r") as file:
-            return file.read().splitlines()
+            current_time = int(time.time())  # Get the current timestamp
+            users = file.read().splitlines()
+
+            # Filter out expired users
+            valid_users = []
+            for user in users:
+                user_id, expiration = user.split(":")
+                if int(expiration) > current_time:  # If the user hasn't expired
+                    valid_users.append(user_id)
+
+            return valid_users
     except FileNotFoundError:
         return []
 
@@ -37,7 +44,7 @@ def handle_chodo(message):
     if user_id in allowed_users:
         if attack_running:
             bot.reply_to(
-                message, 
+                message,
                 "An attack is already running. Wait for it to finish before starting another."
             )
             return
@@ -77,7 +84,63 @@ def handle_chodo(message):
         else:
             bot.reply_to(message, "Usage: /chodo <target> <port> <duration>")
     else:
-        bot.reply_to(message, "You are not authorized to use this command.")
+        bot.reply_to(message, "You are not authorized to use this command or your approval has expired.")
+
+# Handle `/approve` command (admin-only)
+@bot.message_handler(commands=['approve'])
+def approve_user(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_ids:
+        try:
+            # Get the user ID and duration (in seconds)
+            command_args = message.text.split()
+            target_user = command_args[1]
+            duration = int(command_args[2])  # Duration in seconds
+
+            # Get the current time and calculate the expiration time
+            expiration_time = int(time.time()) + duration
+
+            # Add the user to the file with expiration time
+            with open(USER_FILE, "a") as file:
+                file.write(f"{target_user}:{expiration_time}\n")
+
+            # Reload allowed_users
+            global allowed_users
+            allowed_users = read_users()
+
+            bot.reply_to(message, f"User {target_user} has been approved until {time.ctime(expiration_time)}.")
+        except IndexError:
+            bot.reply_to(message, "Usage: /approve <user_id> <duration_in_seconds>")
+    else:
+        bot.reply_to(message, "You do not have permission to approve users.")
+
+# Handle `/remove` command (admin-only)
+@bot.message_handler(commands=['remove'])
+def remove_user(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_ids:
+        try:
+            # Get the user ID to remove
+            target_user = message.text.split()[1]
+            allowed_users = read_users()
+            
+            # Remove user from allowed_users and update the file
+            with open(USER_FILE, "r") as file:
+                lines = file.readlines()
+            with open(USER_FILE, "w") as file:
+                for line in lines:
+                    if not line.startswith(target_user + ":"):
+                        file.write(line)
+
+            # Reload allowed_users
+            global allowed_users
+            allowed_users = read_users()
+            
+            bot.reply_to(message, f"User {target_user} has been removed.")
+        except IndexError:
+            bot.reply_to(message, "Usage: /remove <user_id>")
+    else:
+        bot.reply_to(message, "You do not have permission to remove users.")
 
 # Handle `/myinfo` command
 @bot.message_handler(commands=['myinfo'])
@@ -97,49 +160,11 @@ def handle_help(message):
 Available Commands:
 /chodo <target> <port> <duration> - Start attack.
 /myinfo - Show your information.
-/approve <user_id> - Approve a user to use the bot.
+/approve <user_id> <duration> - Approve a user for a specific duration.
 /remove <user_id> - Remove a user from the allowed list.
 /help - Display this help message.
 '''
     bot.reply_to(message, help_message)
-
-# Handle `/approve` command (admin-only)
-@bot.message_handler(commands=['approve'])
-def approve_user(message):
-    user_id = str(message.chat.id)
-    if user_id in admin_ids:
-        try:
-            # Get the user ID to approve
-            target_user = message.text.split()[1]
-            with open(USER_FILE, "a") as file:
-                file.write(target_user + "\n")
-            bot.reply_to(message, f"User {target_user} has been approved.")
-        except IndexError:
-            bot.reply_to(message, "Usage: /approve <user_id>")
-    else:
-        bot.reply_to(message, "You do not have permission to approve users.")
-
-# Handle `/remove` command (admin-only)
-@bot.message_handler(commands=['remove'])
-def remove_user(message):
-    user_id = str(message.chat.id)
-    if user_id in admin_ids:
-        try:
-            # Get the user ID to remove
-            target_user = message.text.split()[1]
-            allowed_users = read_users()
-            
-            if target_user in allowed_users:
-                allowed_users.remove(target_user)
-                with open(USER_FILE, "w") as file:
-                    file.write("\n".join(allowed_users) + "\n")
-                bot.reply_to(message, f"User {target_user} has been removed.")
-            else:
-                bot.reply_to(message, f"User {target_user} is not in the approved list.")
-        except IndexError:
-            bot.reply_to(message, "Usage: /remove <user_id>")
-    else:
-        bot.reply_to(message, "You do not have permission to remove users.")
 
 # Default handler for unknown commands
 @bot.message_handler(func=lambda message: True)
