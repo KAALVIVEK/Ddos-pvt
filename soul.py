@@ -23,7 +23,7 @@ CHANNEL_ID = -1002383157063
 error_channel_id = -1002383157063
 ADMIN_ID = 7083378335
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
+USERNAME = "@TREXVIVEK"
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client['soul']
 users_collection = db.users
