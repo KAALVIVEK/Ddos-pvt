@@ -85,7 +85,55 @@ async def run_attack_command_async(target_ip, target_port, duration):
 
     # Wait for both processes to complete
     await asyncio.gather(process_1, process_2)
+    
+@bot.message_handler(commands=['approve', 'disapprove'])
+def approve_or_disapprove_user(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    is_admin = is_user_admin(user_id, CHANNEL_ID)
+    cmd_parts = message.text.split()
 
+    if not is_admin:
+        bot.send_message(chat_id, "*You are not authorized to use this command*", parse_mode='Markdown')
+        return
+
+    if len(cmd_parts) < 2:
+        bot.send_message(chat_id, "*Invalid command format. Use /approve <user_id> <plan> <days> or /disapprove <user_id>.*", parse_mode='Markdown')
+        return
+
+    action = cmd_parts[0]
+    target_user_id = int(cmd_parts[1])
+    plan = int(cmd_parts[2]) if len(cmd_parts) >= 3 else 0
+    days = int(cmd_parts[3]) if len(cmd_parts) >= 4 else 0
+
+    if action == '/approve':
+        if plan == 1:  # Instant Plan 🧡
+            if users_collection.count_documents({"plan": 1}) >= 99:
+                bot.send_message(chat_id, "*Approval failed: Instant Plan 🧡 limit reached (99 users).*", parse_mode='Markdown')
+                return
+        elif plan == 2:  # Instant++ Plan 💥
+            if users_collection.count_documents({"plan": 2}) >= 499:
+                bot.send_message(chat_id, "*Approval failed: Instant++ Plan 💥 limit reached (499 users).*", parse_mode='Markdown')
+                return
+
+        valid_until = (datetime.now() + timedelta(days=days)).date().isoformat() if days > 0 else datetime.now().date().isoformat()
+        users_collection.update_one(
+            {"user_id": target_user_id},
+            {"$set": {"plan": plan, "valid_until": valid_until, "access_count": 0}},
+            upsert=True
+        )
+        msg_text = f"*User {target_user_id} approved with plan {plan} for {days} days.*"
+    else:  # disapprove
+        users_collection.update_one(
+            {"user_id": target_user_id},
+            {"$set": {"plan": 0, "valid_until": "", "access_count": 0}},
+            upsert=True
+        )
+        msg_text = f"*User {target_user_id} disapproved and reverted to free.*"
+
+    bot.send_message(chat_id, msg_text, parse_mode='Markdown')
+    bot.send_message(CHANNEL_ID, msg_text, parse_mode='Markdown')
+    
 @bot.message_handler(commands=['Attack'])
 def attack_command(message):
     user_id = message.from_user.id
