@@ -94,7 +94,15 @@ async def run_attack_command_async(target_ip, target_port, duration):
 
     # Wait for both processes to complete
     await asyncio.gather(process_1, process_2)
-
+    
+def is_user_admin(user_id, channel_id):
+    try:
+        member = bot.get_chat_member(channel_id, user_id)
+        return member.status in ["administrator", "creator"]
+    except Exception as e:
+        logging.error(f"Error checking admin status: {e}")
+        return False
+        
 @bot.message_handler(commands=['approve', 'disapprove'])
 def approve_or_disapprove_user(message):
     user_id = message.from_user.id
