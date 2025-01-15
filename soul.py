@@ -16,14 +16,14 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
 loop = asyncio.get_event_loop()
 
-TOKEN = '8004531749:AAE1b_YeYV8IeNmFxXXyjLwTRt_la7jow8o'
+TOKEN = '7468201835:AAFa-SrEtQZIBsBz1iSEs00kQVEquhFS7ho'
 MONGO_URI = 'mongodb+srv://sharp:sharp@sharpx.x82gx.mongodb.net/?retryWrites=true&w=majority&appName=SharpX'
-FORWARD_CHANNEL_ID = -1002494004660
-CHANNEL_ID = -1002494004660
-error_channel_id = -1002494004660
+FORWARD_CHANNEL_ID = -1002268206226
+CHANNEL_ID = -1002268206226
+error_channel_id = -1002268206226
 ADMIN_ID = 7083378335
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-USERNAME = "@LANKAxARINDAM"
+USERNAME = "@TREXVIVEK"
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client['sharp']
 users_collection = db.users
