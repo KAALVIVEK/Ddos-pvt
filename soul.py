@@ -106,6 +106,30 @@ async def add_user(update: Update, context: CallbackContext):
     await context.bot.send_message(chat_id=chat_id, text=response, parse_mode='Markdown')
 
 
+async def remove_user(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != ADMIN_USER_ID:
+        await context.bot.send_message(chat_id=chat_id, text="*⚠️ You are not authorized to use this command.*", parse_mode='Markdown')
+        return
+
+    args = context.args
+    if len(args) < 1:
+        await context.bot.send_message(chat_id=chat_id, text="*⚠️ Usage: /remove <user_id>*", parse_mode='Markdown')
+        return
+
+    user_to_remove = args[0]
+
+    if user_to_remove in users:
+        users.remove(user_to_remove)
+        save_users(users)
+        user_approval_expiry.pop(user_to_remove, None)  # Remove approval expiry if it exists
+        response = f"*✔️ User {user_to_remove} removed successfully.*"
+    else:
+        response = f"*⚠️ User {user_to_remove} not found in the approved list.*"
+
+    await context.bot.send_message(chat_id=chat_id, text=response, parse_mode='Markdown')
+
+
 async def view_logs(update: Update, context: CallbackContext):
     if update.effective_chat.id != ADMIN_USER_ID:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="*⚠️ Unauthorized access.*", parse_mode='Markdown')
@@ -204,10 +228,11 @@ def main():
     application.add_handler(CommandHandler("bgmi", attack))
     application.add_handler(CommandHandler("viewlogs", view_logs))
     application.add_handler(CommandHandler("clearlogs", clear_logs_command))
+    application.add_handler(CommandHandler("remove", remove_user))  # Add remove handler
     application.run_polling()
 
 
 if __name__ == '__main__':
     users = load_users()
     main()
-    
+        
