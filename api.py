@@ -79,11 +79,13 @@ def run_flask_app():
         ip = request.args.get('ip')
         port = request.args.get('port')
         duration = request.args.get('time')
+                packet_size = request.args.get('packet_size')
+        thread = request.args.get('thread')
 
-        if not ip or not port or not duration:
+        if not ip or not port or not duration or not packet_size or not thread:
             return jsonify({'error': 'Missing parameters'}), 400
 
-        command = f"./soul {ip} {port} {duration} 900"
+        command = f"./Spike {ip} {port} {duration} {packet_size} {thread}"
 
         # Start the command execution asynchronously
         response = execute_command_async(command, int(duration))
