@@ -12,7 +12,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 from threading import Thread
 
 loop = asyncio.get_event_loop()
-TOKEN = '7610056449:AAHuC24mPmawzlOxPAjt2FQmQN5t79sWhzU'
+TOKEN = '7714340481:AAE6spxc4WxKgzfJQdMomryW1WGwcNw5WWA'
 MONGO_URI = 'mongodb+srv://rishi:ipxkingyt@rishiv.ncljp.mongodb.net/?retryWrites=true&w=majority&appName=rishiv'
 FORWARD_CHANNEL_ID = -1002332502759
 CHANNEL_ID = -1002332502759
